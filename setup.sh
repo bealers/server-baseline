@@ -1,6 +1,6 @@
 #!/bin/bash
 
-MAINTAINANCE_USER=bealers
+MAINTENANCE_USER=bealers
 
 set -e
 umask 022
@@ -47,17 +47,17 @@ update-locale LANG=en_GB.UTF-8
 
 ################## user
 
-useradd -m -s /bin/bash "$MAINTAINANCE_USER"
+useradd -m -s /bin/bash "$MAINTENANCE_USER"
 
-mkdir -p /home/$MAINTAINANCE_USER/.ssh
+mkdir -p /home/$MAINTENANCE_USER/.ssh
 # this is where DO puts the key when you create the droplet
-cp /root/.ssh/authorized_keys /home/$MAINTAINANCE_USER/.ssh/
+cp /root/.ssh/authorized_keys /home/$MAINTENANCE_USER/.ssh/
 
-chown -R $MAINTAINANCE_USER:$MAINTAINANCE_USER /home/$MAINTAINANCE_USER/.ssh
-chmod 700 /home/$MAINTAINANCE_USER/.ssh
-chmod 600 /home/$MAINTAINANCE_USER/.ssh/authorized_keys
+chown -R $MAINTENANCE_USER:$MAINTENANCE_USER /home/$MAINTENANCE_USER/.ssh
+chmod 700 /home/$MAINTENANCE_USER/.ssh
+chmod 600 /home/$MAINTENANCE_USER/.ssh/authorized_keys
 
-echo "$MAINTAINANCE_USER ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/$MAINTAINANCE_USER
+echo "$MAINTENANCE_USER ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/$MAINTENANCE_USER
 
 ################## cleanup
 
@@ -66,5 +66,5 @@ apt-get -qq -y autoremove > /dev/null
 
 ufw status verbose
 
-echo "Sorted. You can now login as $MAINTAINANCE_USER"
-echo  "ssh $MAINTAINANCE_USER@$(curl -s ifconfig.me) -i ~/.ssh/private-key"
+echo "Sorted. You can now login as $MAINTENANCE_USER"
+echo  "ssh $MAINTENANCE_USER@$(curl -s ifconfig.me) -i ~/.ssh/private-key"
