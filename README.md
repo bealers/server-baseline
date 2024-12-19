@@ -36,7 +36,7 @@ TL;DR you are using a Digital Ocean droplet.
 
 Which is to say that your server provisioning needs to leave a public key (that you have the matching private key for) in `/root/.ssh/authorized_keys`.
 
-This is what Digital Ocean currently does if you select your ssh key when creating a droplet, but you should check for your provider.s
+This is what Digital Ocean currently does if you select your ssh key when creating a droplet, but you should check for your provider.
 
 ## TODO
 

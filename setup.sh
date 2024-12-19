@@ -66,5 +66,5 @@ apt-get -qq -y autoremove > /dev/null
 
 ufw status verbose
 
-echo "Sorted. You can now login as $MAINTENANCE_USER"
+echo "Sorted. You can now login as your maintenance user: $MAINTENANCE_USER"
 echo  "ssh $MAINTENANCE_USER@$(curl -s ifconfig.me) -i ~/.ssh/private-key"
