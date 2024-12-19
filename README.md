@@ -1,8 +1,9 @@
 # Baseline Ubuntu Server Install
 
-- Provides an ssh-key based login for `$MAINTENANCE_USER` (who has sudo access)
-- `ufw` running with everything closed except port 22
-- `ntp` running and locale set to UK defaults
+Provides
+- an ssh-key based login for `$MAINTENANCE_USER` (who has sudo access)
+- `ufw` firewall running with everything closed except port 22 for ssh
+- `ntp` time server running and locale set to UK defaults, so the server matches my timezone
 
 ## Usage
 
@@ -36,9 +37,10 @@ TL;DR you are using a Digital Ocean droplet.
 
 Which is to say that your server provisioning needs to leave a public key (that you have the matching private key for) in `/root/.ssh/authorized_keys`.
 
-This is what Digital Ocean currently does if you select your ssh key when creating a droplet, but you should check for your provider.
+This is how Digital Ocean currently does it if you select your ssh key when creating a droplet, but you should check for your provider.
 
 ## TODO
 
+Hardening:
 - passwordless only
 - remove root sshkey

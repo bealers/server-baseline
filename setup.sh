@@ -59,6 +59,14 @@ chmod 600 /home/$MAINTENANCE_USER/.ssh/authorized_keys
 
 echo "$MAINTENANCE_USER ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/$MAINTENANCE_USER
 
+## ~/.bashrc
+
+cat > /home/$MAINTENANCE_USER/.bashrc << 'EOF'
+export EDITOR=vim
+alias ls='ls --color=auto -Fhla --group-directories-first'
+EOF
+chown $MAINTENANCE_USER:$MAINTENANCE_USER /home/$MAINTENANCE_USER/.bashrc
+
 ################## cleanup
 
 apt-get -qq clean > /dev/null
@@ -66,5 +74,5 @@ apt-get -qq -y autoremove > /dev/null
 
 ufw status verbose
 
-echo "Sorted. You can now login as your maintenance user: $MAINTENANCE_USER"
+echo "Sorted. You can now login as your maintenance user:"
 echo  "ssh $MAINTENANCE_USER@$(curl -s ifconfig.me) -i ~/.ssh/private-key"
