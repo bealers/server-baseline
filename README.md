@@ -6,6 +6,15 @@
 - Locale set to UK defaults
 
 ## Usage
+
+Commission a new server from your provider of choice, the latest LTS is a good choice.
+
+Connect to the server.
+```bash
+ssh root@{your-new-droplet-ip} -i ~/.ssh/your-private-key
+```
+
+Run the script.
 ```bash
 git clone https://github.com/bealers/server-baseline.git
 cd server-baseline && chmod +x setup.sh
