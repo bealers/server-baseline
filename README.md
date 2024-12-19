@@ -44,3 +44,8 @@ This is how Digital Ocean currently does it if you select your ssh key when crea
 Hardening:
 - passwordless only
 - remove root sshkey
+
+## App scripts
+
+- `nginx-php.sh` (Laravel friendly)
+- `node.sh` (nvm, ndode, tailwind, typescript) TODO
