@@ -1,23 +1,26 @@
 #!/bin/bash
 
-SITE_DOMAIN=foo.com
+# TODO - Add SSL
+
+SITE_DOMAIN="app.siftware.com"
+PHP_VERSION="8.4"
 
 set -e
 umask 022
 export DEBIAN_FRONTEND=noninteractive
 
-# Add PHP/Nginx repositories
+# Get current versions of PHP/Nginx
 add-apt-repository -y ppa:ondrej/php
 add-apt-repository -y ppa:ondrej/nginx
-apt-get update
+apt-get -qq update
 
 # httpd
-apt-get install -y nginx
+apt-get -qq install -y nginx
 
 # Remove default site
 rm -f /etc/nginx/sites-enabled/default
 
-# Configure Nginx for PHP, Laravel friendly by default
+# Configure Nginx for PHP, Laravel friendly
 cat > /etc/nginx/sites-available/$SITE_DOMAIN << 'EOL'
 server {
     listen 80;
@@ -56,19 +59,20 @@ systemctl restart nginx
 ### PHP
 
 apt-get install -y \
-    php8.4-fpm \
-    php8.4-cli \
-    php8.4-common \
-    php8.4-mbstring \
-    php8.4-xml \
-    php8.4-zip \
-    php8.4-curl \
-    php8.4-gd \
-    php8.4-intl \
-    php8.4-bcmath \
-    php8.4-pgsql \
-    #php8.4-mysql \
-    #php8.4-sqlite3 \
+    php$PHP_VERSION-fpm \
+    php$PHP_VERSION-cli \
+    php$PHP_VERSION-common \
+    php$PHP_VERSION-mbstring \
+    php$PHP_VERSION-xml \
+    php$PHP_VERSION-zip \
+    php$PHP_VERSION-curl \
+    php$PHP_VERSION-gd \
+    php$PHP_VERSION-intl \
+    php$PHP_VERSION-bcmath \
+    ## database drivers \
+    php$PHP_VERSION-pgsql \
+    #php$PHP_VERSION-mysql \
+    #php$PHP_VERSION-sqlite3 \
 
 # Install Composer
 curl -sS https://getcomposer.org/installer | php
@@ -76,9 +80,9 @@ mv composer.phar /usr/local/bin/composer
 chmod +x /usr/local/bin/composer
 
 # Configure PHP
-sed -i 's/upload_max_filesize = 2M/upload_max_filesize = 64M/' /etc/php/8.4/fpm/php.ini
-sed -i 's/post_max_size = 8M/post_max_size = 64M/' /etc/php/8.4/fpm/php.ini
-sed -i 's/memory_limit = 128M/memory_limit = 256M/' /etc/php/8.4/fpm/php.ini
+sed -i 's/upload_max_filesize = 2M/upload_max_filesize = 64M/' /etc/php/$PHP_VERSION/fpm/php.ini
+sed -i 's/post_max_size = 8M/post_max_size = 64M/' /etc/php/$PHP_VERSION/fpm/php.ini
+sed -i 's/memory_limit = 128M/memory_limit = 256M/' /etc/php/$PHP_VERSION/fpm/php.ini
 
 # Restart PHP-FPM
-systemctl restart php8.4-fpm
+systemctl restart php$PHP_VERSION-fpm
