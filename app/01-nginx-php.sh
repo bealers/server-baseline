@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# TODO - Add SSL, also default user has no password, which feels insecure
 # Purposely kept simple. Ready to install laravel or other PHP apps.
+# TODO - Add SSL
 
 SITE_DOMAIN="abc123.siftware.com"
 PHP_VERSION="8.4"
@@ -21,12 +21,12 @@ apt -qq install -y nginx
 rm -f /etc/nginx/sites-enabled/default
 
 ## Laravel friendly, wip
-cat > /etc/nginx/sites-available/$SITE_DOMAIN << "EOL"
+cat > /etc/nginx/sites-available/$SITE_DOMAIN << 'EOL'
 server {
     listen 80;
     listen [::]:80;
-    server_name ${SITE_DOMAIN};
-    root /var/www/${SITE_DOMAIN}/public;
+    server_name DOMAIN_PLACEHOLDER;
+    root /var/www/DOMAIN_PLACEHOLDER/public;
     index index.php;
 
     # add_header X-Frame-Options "SAMEORIGIN";
@@ -41,12 +41,16 @@ server {
     error_page 404 /index.php;
 
     location ~ \.php$ {
-        fastcgi_pass unix:/var/run/php/php${PHP_VERSION}-fpm.sock;
-        fastcgi_param SCRIPT_FILENAME \$realpath_root\$fastcgi_script_name;
+        fastcgi_pass unix:/var/run/php/phpVERSION_PLACEHOLDER-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
         include fastcgi_params;
     }
 }
 EOL
+
+# Replace placeholders
+sed -i "s/DOMAIN_PLACEHOLDER/$SITE_DOMAIN/g" /etc/nginx/sites-available/$SITE_DOMAIN
+sed -i "s/VERSION_PLACEHOLDER/$PHP_VERSION/g" /etc/nginx/sites-available/$SITE_DOMAIN
 
 ## placeholder
 mkdir -p /var/www/${SITE_DOMAIN}/public
