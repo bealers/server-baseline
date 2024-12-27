@@ -6,7 +6,7 @@
 SITE_DOMAIN=abc123.siftware.com
 
 # assumes repo is public
-REPO_URL=https://github.com/siftware/lara-collab.git
+REPO_URL=https://github.com/siftware/foo.git
 SITE_PATH=/var/www/${SITE_DOMAIN}
 
 set -e
