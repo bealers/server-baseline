@@ -42,10 +42,12 @@ This is how Digital Ocean currently does it if you select your ssh key when crea
 ## TODO
 
 Hardening:
-- passwordless only
+- passwordless entry only
 - remove root sshkey
 
 ## App scripts
 
-- `nginx-php.sh` (Laravel friendly)
-- `node.sh` (nvm, ndode, tailwind, typescript) TODO
+Modify to suit your needs and `chmod +x ./app/*.sh` them to run them.
+
+- `./app/01-nginx-php.sh` (Laravel friendly php 8.4)
+- `./app/02-laravel-node.sh` (nvm, node, tailwind, typescript) TODO
