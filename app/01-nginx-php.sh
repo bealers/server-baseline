@@ -1,8 +1,9 @@
 #!/bin/bash
 
-# TODO - Add SSL
+# TODO - Add SSL, also default user has no password, which feels insecure
+# Purposely kept simple. Ready to install laravel or other PHP apps.
 
-SITE_DOMAIN="app.siftware.com"
+SITE_DOMAIN="abc123.siftware.com"
 PHP_VERSION="8.4"
 
 set -e
@@ -14,13 +15,12 @@ add-apt-repository -y ppa:ondrej/php
 add-apt-repository -y ppa:ondrej/nginx
 apt -qq update
 
-# httpd
+## httpd
 apt -qq install -y nginx
 
-# Remove default site
 rm -f /etc/nginx/sites-enabled/default
 
-# Configure Nginx for PHP, Laravel friendly
+## Laravel friendly, wip
 cat > /etc/nginx/sites-available/$SITE_DOMAIN << "EOL"
 server {
     listen 80;
@@ -48,25 +48,22 @@ server {
 }
 EOL
 
-# Create public directory
+## placeholder
 mkdir -p /var/www/${SITE_DOMAIN}/public
-
-# Create index.php
-cat > /var/www/${SITE_DOMAIN}/public/index.php << "PHPINFO"
+cat > /var/www/${SITE_DOMAIN}/public/index.php << "DELETE_ME"
 <?php
 phpinfo();
-?>
-PHPINFO
 
-# Enable site
+DELETE_ME
+
+## Enable site
 ln -sf /etc/nginx/sites-available/$SITE_DOMAIN /etc/nginx/sites-enabled/
 
-# Test and restart Nginx
+## Test and restart
 nginx -t
 systemctl restart nginx
 
-### PHP
-
+## PHP
 apt -qq install -y \
     php$PHP_VERSION-fpm \
     php$PHP_VERSION-cli \
@@ -78,20 +75,13 @@ apt -qq install -y \
     php$PHP_VERSION-gd \
     php$PHP_VERSION-intl \
     php$PHP_VERSION-bcmath \
-    ## database drivers \
+    ## choose one or more \
     php$PHP_VERSION-pgsql \
     #php$PHP_VERSION-mysql \
     #php$PHP_VERSION-sqlite3 \
 
-# Install Composer
-curl -sS https://getcomposer.org/installer | php
-mv composer.phar /usr/local/bin/composer
-chmod +x /usr/local/bin/composer
-
-# Configure PHP
 sed -i 's/upload_max_filesize = 2M/upload_max_filesize = 64M/' /etc/php/$PHP_VERSION/fpm/php.ini
 sed -i 's/post_max_size = 8M/post_max_size = 64M/' /etc/php/$PHP_VERSION/fpm/php.ini
 sed -i 's/memory_limit = 128M/memory_limit = 256M/' /etc/php/$PHP_VERSION/fpm/php.ini
 
-# Restart PHP-FPM
 systemctl restart php$PHP_VERSION-fpm
