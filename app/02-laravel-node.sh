@@ -21,6 +21,8 @@ curl -sS https://getcomposer.org/installer | php
 mv composer.phar /usr/local/bin/composer
 chmod +x /usr/local/bin/composer
 
+composer update
+
 ## Install Node.js LTS from NodeSource
 curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
 apt -qq install -y nodejs
