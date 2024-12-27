@@ -29,14 +29,18 @@ server {
     root /var/www/DOMAIN_PLACEHOLDER/public;
     index index.php;
 
-    # add_header X-Frame-Options "SAMEORIGIN";
-    # add_header X-XSS-Protection "1; mode=block";
-    # add_header X-Content-Type-Options "nosniff";
+    add_header X-Frame-Options "SAMEORIGIN";
+    add_header X-XSS-Protection "1; mode=block";
+    add_header X-Content-Type-Options "nosniff";
 
     charset utf-8;
 
-    # location = /favicon.ico { access_log off; log_not_found off; }
-    # location = /robots.txt  { access_log off; log_not_found off; }
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location = /favicon.ico { access_log off; log_not_found off; }
+    location = /robots.txt  { access_log off; log_not_found off; }
 
     error_page 404 /index.php;
 
@@ -44,6 +48,10 @@ server {
         fastcgi_pass unix:/var/run/php/phpVERSION_PLACEHOLDER-fpm.sock;
         fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
         include fastcgi_params;
+    }
+
+    location ~ /\.(?!well-known).* {
+        deny all;
     }
 }
 EOL
@@ -90,3 +98,11 @@ sed -i 's/post_max_size = 8M/post_max_size = 64M/' /etc/php/$PHP_VERSION/fpm/php
 sed -i 's/memory_limit = 128M/memory_limit = 256M/' /etc/php/$PHP_VERSION/fpm/php.ini
 
 systemctl restart php$PHP_VERSION-fpm
+
+# this might still need sudo to work?
+mysql -u root -p << EOF
+CREATE DATABASE abc123;
+CREATE USER 'siftware'@'localhost' IDENTIFIED BY 'SOME_PASSWORD';
+GRANT ALL PRIVILEGES ON abc123.* TO 'siftware'@'localhost';
+FLUSH PRIVILEGES;
+EOF
