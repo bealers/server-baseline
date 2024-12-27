@@ -3,7 +3,7 @@
 # Production installs for Laravel + Node.js
 # Standalone, but assumes 01-nginx-php.sh has been run first
 
-SITE_DOMAIN=collab.siftware.com
+SITE_DOMAIN=abc123.siftware.com
 
 # assumes repo is public
 REPO_URL=https://github.com/siftware/lara-collab.git
@@ -37,7 +37,7 @@ echo "Cloning repository..."
 su - www-data -c "git clone ${REPO_URL} ${SITE_PATH}"
 
 echo "Installing composer dependencies..."
-su - www-data -c "cd ${SITE_PATH} && composer install --no-dev"
+su - www-data -c "cd ${SITE_PATH} && composer update && composer install --no-dev"
 
 echo "Installing npm dependencies..."
 su - www-data -c "cd ${SITE_PATH} && npm install && npm run build"

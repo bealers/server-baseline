@@ -4,7 +4,7 @@
 # TODO - Add SSL
 
 SITE_DOMAIN="abc123.siftware.com"
-PHP_VERSION="8.4"
+PHP_VERSION="8.3"
 
 set -e
 umask 022
