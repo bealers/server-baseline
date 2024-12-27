@@ -25,6 +25,12 @@ chmod +x /usr/local/bin/composer
 curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
 apt -qq install -y nodejs
 
+## Setup www-data as a proper deployment user
+usermod -s /bin/bash ${WWW_USER}
+mkdir -p /var/www/.npm
+mkdir -p /var/www/.composer
+chown -R ${WWW_USER}:${WWW_GROUP} /var/www/
+
 ## Prepare site directory
 rm -Rf ${SITE_PATH}
 mkdir -p ${SITE_PATH}
