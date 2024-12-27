@@ -12,21 +12,21 @@ export DEBIAN_FRONTEND=noninteractive
 # Get current versions of PHP/Nginx
 add-apt-repository -y ppa:ondrej/php
 add-apt-repository -y ppa:ondrej/nginx
-apt-get -qq update
+apt -qq update
 
 # httpd
-apt-get -qq install -y nginx
+apt -qq install -y nginx
 
 # Remove default site
 rm -f /etc/nginx/sites-enabled/default
 
 # Configure Nginx for PHP, Laravel friendly
-cat > /etc/nginx/sites-available/$SITE_DOMAIN << 'EOL'
+cat > /etc/nginx/sites-available/$SITE_DOMAIN << "EOL"
 server {
     listen 80;
     listen [::]:80;
-    server_name $SITE_DOMAIN;
-    root /var/www/$SITE_DOMAIN/public;
+    server_name ${SITE_DOMAIN};
+    root /var/www/${SITE_DOMAIN}/public;
     index index.php;
 
     # add_header X-Frame-Options "SAMEORIGIN";
@@ -41,13 +41,22 @@ server {
     error_page 404 /index.php;
 
     location ~ \.php$ {
-        fastcgi_pass unix:/var/run/php/php8.4-fpm.sock;
-        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        fastcgi_pass unix:/var/run/php/php${PHP_VERSION}-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME \$realpath_root\$fastcgi_script_name;
         include fastcgi_params;
     }
-
 }
 EOL
+
+# Create public directory
+mkdir -p /var/www/${SITE_DOMAIN}/public
+
+# Create index.php
+cat > /var/www/${SITE_DOMAIN}/public/index.php << "PHPINFO"
+<?php
+phpinfo();
+?>
+PHPINFO
 
 # Enable site
 ln -sf /etc/nginx/sites-available/$SITE_DOMAIN /etc/nginx/sites-enabled/
@@ -58,7 +67,7 @@ systemctl restart nginx
 
 ### PHP
 
-apt-get install -y \
+apt -qq install -y \
     php$PHP_VERSION-fpm \
     php$PHP_VERSION-cli \
     php$PHP_VERSION-common \
