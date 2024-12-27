@@ -3,7 +3,7 @@
 # Purposely kept simple. Ready to install laravel or other PHP apps.
 # TODO - Add SSL
 
-SITE_DOMAIN="abc123.siftware.com"
+SITE_DOMAIN="aiab.siftware.com"
 PHP_VERSION="8.4"
 
 set -e
@@ -59,6 +59,8 @@ cat > /var/www/${SITE_DOMAIN}/public/index.php << "DELETE_ME"
 phpinfo();
 
 DELETE_ME
+
+chown -R www-data:www-data /var/www/${SITE_DOMAIN}
 
 ## Enable site
 ln -sf /etc/nginx/sites-available/$SITE_DOMAIN /etc/nginx/sites-enabled/

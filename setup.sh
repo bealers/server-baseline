@@ -24,8 +24,10 @@ apt-get -qq -y install \
 ufw default deny incoming
 ufw default allow outgoing
 
-# default closed to everything except SSH
 ufw allow 22/tcp
+# remove or add as needed
+ufw allow 80/tcp
+ufw allow 443/tcp
 
 ufw --force enable
 
