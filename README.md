@@ -49,5 +49,5 @@ Hardening:
 
 Modify to suit your needs and `chmod +x ./app/*.sh` them to run them.
 
-- `./app/01-nginx-php.sh` (Laravel friendly php 8.4)
-- `./app/02-laravel-node.sh` (nvm, node, tailwind, typescript) TODO
+- `./app/01-lemp.sh` (Linux, Nginx, PHP (8.3-fpm), MySQL)
+- `./app/02-laravel-node.sh` (Laravel, Node, Pulls from a public git repo)

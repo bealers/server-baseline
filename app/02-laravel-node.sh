@@ -48,7 +48,7 @@ su - www-data -c "cd ${SITE_PATH} && \
     php artisan key:generate && \
     php artisan storage:link && \
     php artisan optimize && \
-    php artisan migrate --force"
+    php artisan migrate --force" # will break hereif db not configured in .env
 
 ## Verify versions and ownership
 echo "Checking versions:"
