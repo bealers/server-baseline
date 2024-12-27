@@ -4,7 +4,10 @@
 # Standalone, but assumes 01-nginx-php.sh has been run first
 
 SITE_DOMAIN=aiab.siftware.com
+
+# assumes repo is public
 REPO_URL=https://github.com/siftware/lara-collab.git
+
 WWW_USER=www-data
 WWW_GROUP=www-data
 SITE_PATH=/var/www/${SITE_DOMAIN}
@@ -27,15 +30,12 @@ rm -Rf ${SITE_PATH}
 mkdir -p ${SITE_PATH}
 chown ${WWW_USER}:${WWW_GROUP} ${SITE_PATH}
 
-## Clone and setup as www-data
-su - ${WWW_USER} << 'EOWWW'
-# Get variables from parent shell
-SITE_PATH="${SITE_PATH}"
-REPO_URL="${REPO_URL}"
+## Run commands as www-data
+runuser -u ${WWW_USER} -- bash << EOF
+cd ${SITE_PATH}
 
 # Clone repository
-git clone ${REPO_URL} ${SITE_PATH}
-cd ${SITE_PATH}
+git clone ${REPO_URL} .
 
 # Install dependencies
 composer install --no-dev
@@ -51,7 +51,7 @@ php artisan optimize
 # Run migrations if database is configured
 # Uncomment if your .env.example has valid DB credentials
 # php artisan migrate --force
-EOWWW
+EOF
 
 ## Verify versions and ownership
 echo "Checking versions:"
