@@ -48,11 +48,11 @@ server {
 }
 EOL
 
-# Replace placeholders
+# There must be a better way to do this.
 sed -i "s/DOMAIN_PLACEHOLDER/$SITE_DOMAIN/g" /etc/nginx/sites-available/$SITE_DOMAIN
 sed -i "s/VERSION_PLACEHOLDER/$PHP_VERSION/g" /etc/nginx/sites-available/$SITE_DOMAIN
 
-## placeholder
+## not very secure, placeholder
 mkdir -p /var/www/${SITE_DOMAIN}/public
 cat > /var/www/${SITE_DOMAIN}/public/index.php << "DELETE_ME"
 <?php
@@ -79,7 +79,6 @@ apt -qq install -y \
     php$PHP_VERSION-gd \
     php$PHP_VERSION-intl \
     php$PHP_VERSION-bcmath \
-    ## choose one or more \
     php$PHP_VERSION-pgsql \
     #php$PHP_VERSION-mysql \
     #php$PHP_VERSION-sqlite3 \
