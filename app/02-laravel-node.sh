@@ -3,13 +3,10 @@
 # Production installs for Laravel + Node.js
 # Standalone, but assumes 01-nginx-php.sh has been run first
 
-SITE_DOMAIN=aiab.siftware.com
+SITE_DOMAIN=collab.siftware.com
 
 # assumes repo is public
 REPO_URL=https://github.com/siftware/lara-collab.git
-
-WWW_USER=www-data
-WWW_GROUP=www-data
 SITE_PATH=/var/www/${SITE_DOMAIN}
 
 set -e
@@ -21,45 +18,37 @@ curl -sS https://getcomposer.org/installer | php
 mv composer.phar /usr/local/bin/composer
 chmod +x /usr/local/bin/composer
 
-composer update
-
 ## Install Node.js LTS from NodeSource
 curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
 apt -qq install -y nodejs
 
 ## Setup www-data as a proper deployment user
-usermod -s /bin/bash ${WWW_USER}
+usermod -s /bin/bash www-data
 mkdir -p /var/www/.npm
 mkdir -p /var/www/.composer
-chown -R ${WWW_USER}:${WWW_GROUP} /var/www/
+chown -R www-data:www-data /var/www/
 
 ## Prepare site directory
 rm -Rf ${SITE_PATH}
 mkdir -p ${SITE_PATH}
-chown ${WWW_USER}:${WWW_GROUP} ${SITE_PATH}
+chown www-data:www-data ${SITE_PATH}
 
-## Run commands as www-data
-runuser -u ${WWW_USER} -- bash << EOF
-cd ${SITE_PATH}
+echo "Cloning repository..."
+su - www-data -c "git clone ${REPO_URL} ${SITE_PATH}"
 
-# Clone repository
-git clone ${REPO_URL} .
+echo "Installing composer dependencies..."
+su - www-data -c "cd ${SITE_PATH} && composer install --no-dev"
 
-# Install dependencies
-composer install --no-dev
-npm install
-npm run build
+echo "Installing npm dependencies..."
+su - www-data -c "cd ${SITE_PATH} && npm install && npm run build"
 
-# Laravel setup
-cp .env.example .env
-php artisan key:generate
-php artisan storage:link
-php artisan optimize
-
-# Run migrations if database is configured
-# Uncomment if your .env.example has valid DB credentials
-# php artisan migrate --force
-EOF
+echo "Setting up Laravel..."
+su - www-data -c "cd ${SITE_PATH} && \
+    cp .env.example .env && \
+    php artisan key:generate && \
+    php artisan storage:link && \
+    php artisan optimize && \
+    php artisan migrate --force"
 
 ## Verify versions and ownership
 echo "Checking versions:"

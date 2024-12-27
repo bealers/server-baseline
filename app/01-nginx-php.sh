@@ -3,7 +3,7 @@
 # Purposely kept simple. Ready to install laravel or other PHP apps.
 # TODO - Add SSL
 
-SITE_DOMAIN="aiab.siftware.com"
+SITE_DOMAIN="abc123.siftware.com"
 PHP_VERSION="8.4"
 
 set -e
@@ -16,7 +16,7 @@ add-apt-repository -y ppa:ondrej/nginx
 apt -qq update
 
 ## httpd
-apt -qq install -y nginx
+apt -qq install -y nginx mysql-server
 
 rm -f /etc/nginx/sites-enabled/default
 
@@ -81,9 +81,9 @@ apt -qq install -y \
     php$PHP_VERSION-gd \
     php$PHP_VERSION-intl \
     php$PHP_VERSION-bcmath \
-    php$PHP_VERSION-pgsql \
-    #php$PHP_VERSION-mysql \
-    #php$PHP_VERSION-sqlite3 \
+    php$PHP_VERSION-mysql \
+    #php$PHP_VERSION-pgsql \
+    #php$PHP_VERSION-sqlite3
 
 sed -i 's/upload_max_filesize = 2M/upload_max_filesize = 64M/' /etc/php/$PHP_VERSION/fpm/php.ini
 sed -i 's/post_max_size = 8M/post_max_size = 64M/' /etc/php/$PHP_VERSION/fpm/php.ini
