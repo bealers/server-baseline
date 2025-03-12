@@ -32,6 +32,9 @@ apt -qq update
 echo "Installing Nginx..."
 apt -qq install -y nginx
 
+# Install Certbot Nginx plugin
+apt -qq install -y python3-certbot-nginx
+
 # Install selected database
 case $DB_TYPE in
     "mysql")
@@ -55,34 +58,8 @@ esac
 
 rm -f /etc/nginx/sites-enabled/default
 
-## Create Nginx SSL parameters file
-echo "Creating SSL parameters file..."
-mkdir -p /etc/nginx/ssl
-cat > /etc/nginx/ssl/ssl-params.conf << 'EOL'
-# SSL parameters for better security
-ssl_protocols TLSv1.2 TLSv1.3;
-ssl_prefer_server_ciphers on;
-ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
-ssl_session_timeout 1d;
-ssl_session_cache shared:SSL:10m;
-ssl_session_tickets off;
-
-# OCSP Stapling
-ssl_stapling on;
-ssl_stapling_verify on;
-resolver 8.8.8.8 8.8.4.4 valid=300s;
-resolver_timeout 5s;
-
-# Security headers
-add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload";
-add_header X-Frame-Options SAMEORIGIN;
-add_header X-Content-Type-Options nosniff;
-add_header X-XSS-Protection "1; mode=block";
-EOL
-
 ## Laravel friendly, with SSL ready configuration
 cat > /etc/nginx/sites-available/$SITE_DOMAIN << 'EOL'
-# HTTP server - will redirect to HTTPS once SSL is configured
 server {
     listen 80;
     listen [::]:80;
@@ -95,56 +72,70 @@ server {
     
     # All other requests redirect to HTTPS
     location / {
-        # Will be replaced by certbot when SSL is configured
-        return 301 http://$host$request_uri;
+        return 301 https://$host$request_uri;
     }
 }
 
-# HTTPS server - commented out until SSL is configured
-# Certbot will uncomment and configure this section
-# server {
-#     listen 443 ssl http2;
-#     listen [::]:443 ssl http2;
-#     server_name DOMAIN_PLACEHOLDER;
-#     
-#     # SSL configuration - will be updated by certbot
-#     # ssl_certificate /etc/letsencrypt/live/DOMAIN_PLACEHOLDER/fullchain.pem;
-#     # ssl_certificate_key /etc/letsencrypt/live/DOMAIN_PLACEHOLDER/privkey.pem;
-#     # include /etc/nginx/ssl/ssl-params.conf;
-#     
-#     root /var/www/DOMAIN_PLACEHOLDER/public;
-#     index index.php;
-#     
-#     charset utf-8;
-#     
-#     location / {
-#         try_files $uri $uri/ /index.php?$query_string;
-#     }
-#     
-#     location = /favicon.ico { access_log off; log_not_found off; }
-#     location = /robots.txt  { access_log off; log_not_found off; }
-#     
-#     error_page 404 /index.php;
-#     
-#     location ~ \.php$ {
-#         fastcgi_pass unix:/var/run/php/phpVERSION_PLACEHOLDER-fpm.sock;
-#         fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
-#         include fastcgi_params;
-#     }
-#     
-#     location ~ /\.(?!well-known).* {
-#         deny all;
-#     }
-# }
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name DOMAIN_PLACEHOLDER;
+    
+    # SSL configuration
+    ssl_certificate /etc/letsencrypt/live/DOMAIN_PLACEHOLDER/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/DOMAIN_PLACEHOLDER/privkey.pem;
+    include /etc/nginx/ssl/ssl-params.conf;
+    
+    root /var/www/DOMAIN_PLACEHOLDER/public;
+    index index.php;
+    
+    charset utf-8;
+    
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+    
+    location = /favicon.ico { access_log off; log_not_found off; }
+    location = /robots.txt  { access_log off; log_not_found off; }
+    
+    error_page 404 /index.php;
+    
+    location ~ \.php$ {
+        fastcgi_pass unix:/var/run/php/phpVERSION_PLACEHOLDER-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+    
+    location ~ /\.(?!well-known).* {
+        deny all;
+    }
+}
 EOL
 
-# There must be a better way to do this.
+# Replace placeholders
 sed -i "s/DOMAIN_PLACEHOLDER/$SITE_DOMAIN/g" /etc/nginx/sites-available/$SITE_DOMAIN
 sed -i "s/VERSION_PLACEHOLDER/$PHP_VERSION/g" /etc/nginx/sites-available/$SITE_DOMAIN
 
-# Create directory for Let's Encrypt webroot authentication
+# Ensure SSL directories exist
+echo "Setting up SSL configuration..."
+mkdir -p /etc/nginx/ssl
 mkdir -p /var/www/letsencrypt
 chmod 755 /var/www/letsencrypt
+
+# Create SSL parameters file
+cat > /etc/nginx/ssl/ssl-params.conf << 'EOL'
+ssl_protocols TLSv1.2 TLSv1.3;
+ssl_prefer_server_ciphers on;
+ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
+ssl_session_timeout 1d;
+ssl_session_cache shared:SSL:50m;
+ssl_stapling on;
+ssl_stapling_verify on;
+resolver 8.8.8.8 8.8.4.4 valid=300s;
+resolver_timeout 5s;
+add_header Strict-Transport-Security "max-age=63072000" always;
+EOL
 
 ## not very secure, placeholder
 mkdir -p /var/www/${SITE_DOMAIN}/public

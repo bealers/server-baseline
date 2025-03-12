@@ -1,13 +1,11 @@
 #!/bin/bash
 
-# Configuration - Edit these variables as needed
 MAINTENANCE_USER=bealers
 SITE_DOMAIN="bealers.com"
 EMAIL="darren.beale@siftware.com"
 PHP_VERSION="8.4"
 REPO_URL="https://github.com/bealers/bealers.com"
 
-# Database selection (mysql, pgsql, sqlite)
 DB_TYPE="mysql"
 
 # Script execution flags
@@ -189,57 +187,19 @@ echo "REPO_URL=$REPO_URL"
 
 ################## Run additional scripts
 
-SCRIPT_DIR="$(dirname "$0")/app"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)/app"
 
 # Make sure all scripts are executable
 chmod +x $SCRIPT_DIR/*.sh 2>/dev/null || echo "Failed to make scripts executable, continuing anyway"
 
-# Run LEMP stack setup
-if $RUN_LEMP; then
-    echo ""
-    echo "==============================================="
-    echo "Running LEMP stack setup..."
-    echo "==============================================="
-    $SCRIPT_DIR/01-lemp.sh || {
-        echo "LEMP stack setup failed. Check the logs for errors."
-        echo "You can try running it manually with: $SCRIPT_DIR/01-lemp.sh"
-    }
-    echo "LEMP stack setup completed."
-fi
+# Run scripts in new order
+echo "Installing SSL certificates..."
+bash "$SCRIPT_DIR/02-letsencrypt-ssl.sh"
 
-# Run Let's Encrypt SSL setup
-if $RUN_SSL; then
-    echo ""
-    echo "==============================================="
-    echo "Running Let's Encrypt SSL setup..."
-    echo "==============================================="
-    $SCRIPT_DIR/02-letsencrypt-ssl.sh || {
-        echo "Let's Encrypt SSL setup failed. Check the logs for errors."
-        echo "You can try running it manually with: $SCRIPT_DIR/02-letsencrypt-ssl.sh"
-    }
-    echo "Let's Encrypt SSL setup completed."
-fi
+echo "Setting up LEMP stack..."
+bash "$SCRIPT_DIR/01-lemp.sh"
 
-# Run Laravel and Node.js setup
-if $RUN_LARAVEL; then
-    echo ""
-    echo "==============================================="
-    echo "Running Laravel and Node.js setup..."
-    echo "==============================================="
-    $SCRIPT_DIR/03-laravel-node.sh || {
-        echo "Laravel and Node.js setup failed. Check the logs for errors."
-        echo "You can try running it manually with: $SCRIPT_DIR/03-laravel-node.sh"
-    }
-    echo "Laravel and Node.js setup completed."
-fi
+echo "Setting up Laravel and Node.js..."
+bash "$SCRIPT_DIR/03-laravel-node.sh"
 
-echo ""
-echo "==============================================="
 echo "Server setup complete!"
-echo "==============================================="
-echo "Your server is now configured with:"
-if $RUN_LEMP; then echo "- LEMP stack (Nginx, PHP $PHP_VERSION, $DB_TYPE)"; fi
-if $RUN_SSL; then echo "- Let's Encrypt SSL for $SITE_DOMAIN"; fi
-if $RUN_LARAVEL; then echo "- Laravel and Node.js"; fi
-echo ""
-echo "You can access your site at: https://$SITE_DOMAIN"
