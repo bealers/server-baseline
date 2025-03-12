@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Production installs for Laravel + Node.js
-# Standalone, but assumes 01-nginx-php.sh has been run first
+# Laravel and Node.js configuration
+# Assumes binaries.sh has been run first
 
 # Use environment variables from setup.sh or set defaults if not provided
 SITE_DOMAIN=${SITE_DOMAIN:-"example.com"}
@@ -10,14 +10,8 @@ SITE_PATH=/var/www/${SITE_DOMAIN}
 
 set -e
 umask 022
-export DEBIAN_FRONTEND=noninteractive
 
 echo "Setting up Laravel and Node.js for: $SITE_DOMAIN"
-
-# Install Composer globally
-curl -sS https://getcomposer.org/installer | php
-mv composer.phar /usr/local/bin/composer
-chmod +x /usr/local/bin/composer
 
 # Clone repository
 rm -rf ${SITE_PATH}
@@ -29,9 +23,15 @@ cd ${SITE_PATH}
 su - www-data -c "cd ${SITE_PATH} && composer install --no-dev"
 su - www-data -c "cd ${SITE_PATH} && npm install && npm run build"
 
+# Copy database credentials if they exist
+if [ -f "/root/.${SITE_DOMAIN}_db_credentials" ]; then
+    echo "Copying database credentials to .env..."
+    cat "/root/.${SITE_DOMAIN}_db_credentials" >> ${SITE_PATH}/.env
+fi
+
 # Laravel setup
 su - www-data -c "cd ${SITE_PATH} && \
-    cp .env.example .env && \
+    cp -n .env.example .env && \
     php artisan key:generate && \
     php artisan storage:link && \
     php artisan optimize && \

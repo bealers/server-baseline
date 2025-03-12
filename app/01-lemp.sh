@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# LEMP stack with SSL setup
+# LEMP stack configuration and SSL setup
 SITE_DOMAIN=${SITE_DOMAIN:-"example.com"}
 PHP_VERSION=${PHP_VERSION:-"8.4"}
 DB_TYPE=${DB_TYPE:-"mysql"}
@@ -8,9 +8,8 @@ EMAIL=${EMAIL:-"your-email@example.com"}
 
 set -e
 umask 022
-export DEBIAN_FRONTEND=noninteractive
 
-echo "Setting up LEMP stack for: $SITE_DOMAIN"
+echo "Configuring LEMP stack for: $SITE_DOMAIN"
 
 # Check if domain resolves to this server
 SERVER_IP=$(curl -s ifconfig.me)
@@ -19,24 +18,14 @@ DOMAIN_IP=$(dig +short $SITE_DOMAIN)
 echo "Server IP: $SERVER_IP"
 echo "Domain IP: $DOMAIN_IP"
 
-if [ -z "$DOMAIN_IP" ] || [ "$DOMAIN_IP" != "$SERVER_IP" ]; then
+# Allow localhost addresses (for local development/testing)
+if [[ "$DOMAIN_IP" == "127.0.0.1" ]] || [[ "$DOMAIN_IP" == "127.0.1.1" ]]; then
+    echo "Domain resolves to localhost - proceeding with setup..."
+elif [ -z "$DOMAIN_IP" ] || [ "$DOMAIN_IP" != "$SERVER_IP" ]; then
     echo "Error: $SITE_DOMAIN does not resolve to this server's IP ($SERVER_IP)"
     echo "Please configure DNS before running this script"
     exit 1
 fi
-
-# Install PHP and extensions
-echo "Installing PHP $PHP_VERSION..."
-apt -qq install -y \
-    php$PHP_VERSION-fpm \
-    php$PHP_VERSION-cli \
-    php$PHP_VERSION-common \
-    php$PHP_VERSION-zip \
-    php$PHP_VERSION-gd \
-    php$PHP_VERSION-mbstring \
-    php$PHP_VERSION-curl \
-    php$PHP_VERSION-xml \
-    php$PHP_VERSION-bcmath
 
 # Basic PHP config
 echo "Configuring PHP..."
@@ -159,10 +148,9 @@ nginx -t
 
 # Start services
 echo "Starting services..."
-systemctl enable --now php$PHP_VERSION-fpm
 systemctl restart php$PHP_VERSION-fpm
 systemctl restart nginx
 
-echo "LEMP stack setup complete!"
+echo "LEMP stack configuration complete!"
 echo "Your site is available at: https://$SITE_DOMAIN"
 [ -f /root/.${SITE_DOMAIN}_db_credentials ] && echo "Database credentials saved in /root/.${SITE_DOMAIN}_db_credentials"
