@@ -10,7 +10,6 @@ DB_TYPE="mysql"
 
 # Script execution flags
 RUN_LEMP=true
-RUN_SSL=true
 RUN_LARAVEL=true
 
 # Prompt for configuration if running interactively
@@ -39,14 +38,9 @@ if [ -t 0 ]; then
     esac
     
     echo "Which components would you like to install?"
-    read -p "LEMP stack (Nginx, PHP, Database)? (Y/n): " lemp_choice
+    read -p "LEMP stack (Nginx, PHP, Database, SSL)? (Y/n): " lemp_choice
     if [[ $lemp_choice == "n" || $lemp_choice == "N" ]]; then
         RUN_LEMP=false
-    fi
-    
-    read -p "Let's Encrypt SSL? (Y/n): " ssl_choice
-    if [[ $ssl_choice == "n" || $ssl_choice == "N" ]]; then
-        RUN_SSL=false
     fi
     
     read -p "Laravel and Node.js? (Y/n): " laravel_choice
@@ -60,8 +54,7 @@ if [ -t 0 ]; then
     echo "PHP Version: $PHP_VERSION"
     echo "Repository: $REPO_URL"
     echo "Database: $DB_TYPE"
-    echo "Install LEMP: $RUN_LEMP"
-    echo "Install SSL: $RUN_SSL"
+    echo "Install LEMP+SSL: $RUN_LEMP"
     echo "Install Laravel/Node: $RUN_LARAVEL"
     read -p "Continue with this configuration? (Y/n): " confirm
     if [[ $confirm == "n" || $confirm == "N" ]]; then
@@ -83,10 +76,13 @@ set -e
 umask 022
 export DEBIAN_FRONTEND=noninteractive
 
-################## baseline install
+################## Install ALL packages first
 
+echo "Installing all required packages..."
 apt-get -qq update
 apt-get -qq -y upgrade
+
+# Base system utilities
 apt-get -qq -y install \
     vim \
     curl \
@@ -95,42 +91,85 @@ apt-get -qq -y install \
     zip \
     ntp \
     ufw \
-    stow # for my dotfiles
+    stow \
+    software-properties-common
 
-################## firewall
+# Add required repositories
+echo "Adding PHP and Nginx repositories..."
+add-apt-repository -y ppa:ondrej/php
+add-apt-repository -y ppa:ondrej/nginx
+apt-get -qq update
 
+# Install only the selected database system
+echo "Installing database system ($DB_TYPE)..."
+case $DB_TYPE in
+    mysql)
+        apt-get -qq -y install mysql-server
+        ;;
+    pgsql)
+        apt-get -qq -y install postgresql postgresql-contrib
+        ;;
+    sqlite)
+        apt-get -qq -y install sqlite3
+        ;;
+esac
+
+# LEMP stack packages
+apt-get -qq -y install \
+    nginx \
+    python3-certbot-nginx \
+    certbot
+
+# PHP and extensions
+echo "Installing PHP ${PHP_VERSION} and extensions..."
+apt-get -qq -y install \
+    php${PHP_VERSION} \
+    php${PHP_VERSION}-fpm \
+    php${PHP_VERSION}-cli \
+    php${PHP_VERSION}-common \
+    php${PHP_VERSION}-zip \
+    php${PHP_VERSION}-gd \
+    php${PHP_VERSION}-mbstring \
+    php${PHP_VERSION}-curl \
+    php${PHP_VERSION}-xml \
+    php${PHP_VERSION}-bcmath
+
+# Install database-specific PHP extension
+case $DB_TYPE in
+    mysql)
+        apt-get -qq -y install php${PHP_VERSION}-mysql
+        ;;
+    pgsql)
+        apt-get -qq -y install php${PHP_VERSION}-pgsql
+        ;;
+    sqlite)
+        apt-get -qq -y install php${PHP_VERSION}-sqlite3
+        ;;
+esac
+
+################## Configure system
+
+# Firewall
+echo "Configuring firewall..."
 ufw default deny incoming
 ufw default allow outgoing
-
 ufw allow 22/tcp
-# HTTP and HTTPS for web server
 ufw allow 80/tcp
 ufw allow 443/tcp
-
 ufw --force enable
 
-################## harden ssh
-
-# WARNING: This will very likely break default Digital Ocean access methods
-#
-# echo "PermitRootLogin no" >> /etc/ssh/sshd_config
-# echo "PasswordAuthentication no" >> /etc/ssh/sshd_config
-# systemctl restart sshd
-# passwd -l root  # Lock root account
-
-################## locale
-
+# Timezone and locale
 timedatectl set-timezone Europe/London
 locale-gen en_GB.UTF-8 > /dev/null
 update-locale LANG=en_GB.UTF-8
 
+################## Configure users
 
-################## user
-
+# Set up maintenance user
+echo "Setting up maintenance user..."
 useradd -m -s /bin/bash "$MAINTENANCE_USER"
 
 mkdir -p /home/$MAINTENANCE_USER/.ssh
-# this is where DO puts the key when you create the droplet
 cp /root/.ssh/authorized_keys /home/$MAINTENANCE_USER/.ssh/ 2>/dev/null || true
 
 chown -R $MAINTENANCE_USER:$MAINTENANCE_USER /home/$MAINTENANCE_USER/.ssh
@@ -140,64 +179,50 @@ chmod 600 /home/$MAINTENANCE_USER/.ssh/authorized_keys 2>/dev/null || true
 echo "$MAINTENANCE_USER ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/$MAINTENANCE_USER
 
 # Clone and setup dotfiles
-echo "Setting up dotfiles for $MAINTENANCE_USER..."
 cd /home/$MAINTENANCE_USER
-su - $MAINTENANCE_USER -c "git clone https://github.com/bealers/dotfiles.git" || echo "Dotfiles already exist or couldn't be cloned"
-su - $MAINTENANCE_USER -c "cd dotfiles && stow -t ~ bash" || echo "Failed to set up dotfiles, continuing anyway"
+su - $MAINTENANCE_USER -c "git clone https://github.com/bealers/dotfiles.git" || echo "Dotfiles already exist"
+su - $MAINTENANCE_USER -c "cd dotfiles && stow -t ~ bash" || echo "Failed to set up dotfiles"
 
-################## Install NVM for Node.js
-
-echo "Installing NVM for www-data..."
-# Setup NVM for www-data user
-mkdir -p /var/www/.nvm
-chown www-data:www-data /var/www/.nvm
+# Set up www-data for deployments
+echo "Setting up www-data for deployments..."
+usermod -d /var/www -s /bin/bash www-data
+mkdir -p /var/www/.nvm /var/www/.npm /var/www/.config
+chown -R www-data:www-data /var/www
 
 # Add NVM to www-data's profile
 cat > /var/www/.bashrc << 'EOF'
 export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
 EOF
 chown www-data:www-data /var/www/.bashrc
 
-# Install latest LTS Node.js for www-data
+# Install NVM and Node.js for www-data
 su - www-data -c 'curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash && \
     export NVM_DIR="$HOME/.nvm" && \
     [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" && \
     nvm install --lts'
 
-################## cleanup
+################## Run configuration scripts
+
+SCRIPT_DIR="/root/server-baseline/app"
+chmod +x "$SCRIPT_DIR"/*.sh
+
+if [ "$RUN_LEMP" = true ]; then
+    echo "Setting up LEMP stack with SSL..."
+    bash "$SCRIPT_DIR/01-lemp.sh"
+fi
+
+if [ "$RUN_LARAVEL" = true ]; then
+    echo "Setting up Laravel and Node.js..."
+    bash "$SCRIPT_DIR/03-laravel-node.sh"
+fi
+
+################## Cleanup
 
 apt-get -qq clean > /dev/null
 apt-get -qq -y autoremove > /dev/null
 
-ufw status verbose || echo "UFW not available, continuing anyway"
-
-echo "Sorted. You can now login as your maintenance user:"
-echo "ssh $MAINTENANCE_USER@$(curl -s ifconfig.me 2>/dev/null || echo "YOUR_SERVER_IP") -i ~/.ssh/private-key"
-echo ""
-echo "Environment variables set for other scripts:"
-echo "SITE_DOMAIN=$SITE_DOMAIN"
-echo "EMAIL=$EMAIL"
-echo "PHP_VERSION=$PHP_VERSION"
-echo "DB_TYPE=$DB_TYPE"
-echo "REPO_URL=$REPO_URL"
-
-################## Run additional scripts
-
-SCRIPT_DIR="/root/server-baseline/app"
-
-# Make scripts executable
-chmod +x "$SCRIPT_DIR"/*.sh
-
-# Run scripts in new order
-echo "Installing SSL certificates..."
-bash "$SCRIPT_DIR/02-letsencrypt-ssl.sh"
-
-echo "Setting up LEMP stack..."
-bash "$SCRIPT_DIR/01-lemp.sh"
-
-echo "Setting up Laravel and Node.js..."
-bash "$SCRIPT_DIR/03-laravel-node.sh"
-
 echo "Server setup complete!"
+echo "You can now login as your maintenance user:"
+echo "ssh $MAINTENANCE_USER@$(curl -s ifconfig.me 2>/dev/null || echo "YOUR_SERVER_IP") -i ~/.ssh/private-key"
