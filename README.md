@@ -1,6 +1,6 @@
-# Server Setup Scripts
+# Default Sever Build
 
-This directory contains scripts for setting up a production server with LEMP stack (Linux, Nginx, MySQL/PostgreSQL/SQLite, PHP), Let's Encrypt SSL, and Laravel/Node.js.
+Scripts for setting up a production server with LEMP stack (Linux, Nginx, MySQL/PostgreSQL/SQLite, PHP), Let's Encrypt SSL, and Laravel/Node.js.
 
 ## What's Included
 
@@ -13,8 +13,8 @@ This directory contains scripts for setting up a production server with LEMP sta
 
 ## Production Scripts
 
-- `setup.sh` - Main setup script that orchestrates the entire installation process
-- `app/01-lemp.sh` - Sets up Nginx, PHP, and database (MySQL, PostgreSQL, or SQLite)
+- `setup.sh` - Main setup script
+- `app/01-lemp.sh` - Sets up Nginx, PHP, and database
 - `app/02-letsencrypt-ssl.sh` - Sets up Let's Encrypt SSL certificates
 - `app/03-laravel-node.sh` - Sets up Laravel and Node.js
 
@@ -48,7 +48,7 @@ ssh bealers@droplet-ip -i ~/.ssh/private-key
 
 ## Assumptions
 
-TL;DR you are using a Digital Ocean droplet.
+You are using a Digital Ocean droplet.
 
 Which is to say that your server provisioning needs to leave a public key (that you have the matching private key for) in `/root/.ssh/authorized_keys`.
 
