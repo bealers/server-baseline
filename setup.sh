@@ -147,9 +147,7 @@ su - $MAINTENANCE_USER -c "cd dotfiles && stow -t ~ bash" || echo "Failed to set
 
 ################## Install NVM for Node.js
 
-echo "Installing NVM..."
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash || echo "Failed to install NVM, continuing anyway"
-
+echo "Installing NVM for www-data..."
 # Setup NVM for www-data user
 mkdir -p /var/www/.nvm
 chown www-data:www-data /var/www/.nvm
@@ -166,7 +164,7 @@ chown www-data:www-data /var/www/.bashrc
 su - www-data -c 'curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash && \
     export NVM_DIR="$HOME/.nvm" && \
     [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" && \
-    nvm install --lts' || echo "Failed to install Node.js, continuing anyway"
+    nvm install --lts'
 
 ################## cleanup
 
@@ -187,10 +185,10 @@ echo "REPO_URL=$REPO_URL"
 
 ################## Run additional scripts
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)/app"
+SCRIPT_DIR="/root/server-baseline/app"
 
-# Make sure all scripts are executable
-chmod +x $SCRIPT_DIR/*.sh 2>/dev/null || echo "Failed to make scripts executable, continuing anyway"
+# Make scripts executable
+chmod +x "$SCRIPT_DIR"/*.sh
 
 # Run scripts in new order
 echo "Installing SSL certificates..."
