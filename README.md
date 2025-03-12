@@ -1,4 +1,4 @@
-# Default Sever Build
+# Default Server Build
 
 Scripts for setting up a production server with LEMP stack (Linux, Nginx, MySQL/PostgreSQL/SQLite, PHP), Let's Encrypt SSL, and Laravel/Node.js.
 
@@ -14,9 +14,9 @@ Scripts for setting up a production server with LEMP stack (Linux, Nginx, MySQL/
 ## Production Scripts
 
 - `setup.sh` - Main setup script
-- `app/01-lemp.sh` - Sets up Nginx, PHP, and database
-- `app/02-letsencrypt-ssl.sh` - Sets up Let's Encrypt SSL certificates
+- `app/01-lemp.sh` - Sets up Nginx, PHP, database, and SSL
 - `app/03-laravel-node.sh` - Sets up Laravel and Node.js
+- `app/update-domain.sh` - Helper script to change domains after initial setup
 
 ## Usage
 
@@ -45,6 +45,24 @@ ssh bealers@droplet-ip -i ~/.ssh/private-key
 ```
 
 6) If step 5 works, close your root terminal and don't use root again.
+
+## Changing Domains
+
+If you need to change the domain after initial setup (e.g., moving from a staging to production domain):
+
+1. Make sure the new domain's DNS is configured to point to your server
+2. Run the update-domain script:
+```bash
+sudo bash app/update-domain.sh old-domain.com new-domain.com
+```
+
+The script will:
+- Verify DNS configuration
+- Get new SSL certificates
+- Update Nginx configuration
+- Move web root directory
+- Update database name and credentials (if using MySQL)
+- Restart services
 
 ## Assumptions
 
