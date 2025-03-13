@@ -3,7 +3,8 @@
 # Configuration script - can be run multiple times
 # Assumes binaries.sh has been run at least once
 
-set -e
+# Remove set -e to prevent early exits on non-fatal errors
+set +e
 umask 022
 
 ################## Configure system
@@ -45,8 +46,13 @@ su - $MAINTENANCE_USER -c "cd dotfiles && stow -t ~ bash" || echo "Failed to set
 # Set up www-data for deployments
 echo "Setting up www-data for deployments..."
 usermod -d /var/www -s /bin/bash www-data
-mkdir -p /var/www/.nvm /var/www/.npm /var/www/.config
+mkdir -p /var/www/.nvm /var/www/.npm /var/www/.config /var/www/.ssh
 chown -R www-data:www-data /var/www
+
+# Set up SSH for www-data
+cp /root/.ssh/authorized_keys /var/www/.ssh/ 2>/dev/null || true
+chmod 700 /var/www/.ssh
+chmod 600 /var/www/.ssh/authorized_keys 2>/dev/null || true
 
 # Add NVM to www-data's profile
 cat > /var/www/.bashrc << 'EOF'
@@ -65,7 +71,7 @@ su - www-data -c 'curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/
 ################## Run configuration scripts
 
 # Remove set -e as it might be causing silent exits
-set +e
+set -e
 
 echo "DEBUG: Starting configuration scripts section"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
