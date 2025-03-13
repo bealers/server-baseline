@@ -14,11 +14,6 @@ umask 022
 
 echo "Setting up Laravel and Node.js for: $SITE_DOMAIN"
 
-# Convert HTTPS to SSH URL if needed
-if [[ "$REPO_URL" == https://github.com/* ]]; then
-    REPO_URL="git@github.com:${REPO_URL#https://github.com/}"
-fi
-
 echo "Using repository URL: $REPO_URL"
 
 # Ensure directory is owned by www-data
