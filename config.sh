@@ -70,11 +70,16 @@ su - www-data -c 'curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/
 
 ################## Run configuration scripts
 
-# Remove set -e as it might be causing silent exits
-set -e
+# Keep set +e for the entire script execution
+set +e
 
 echo "DEBUG: Starting configuration scripts section"
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd /root/server-baseline || {
+    echo "ERROR: Could not change to /root/server-baseline"
+    exit 1
+}
+
+SCRIPT_DIR="/root/server-baseline"
 echo "DEBUG: Script directory: $SCRIPT_DIR"
 echo "DEBUG: Current directory: $(pwd)"
 echo "DEBUG: RUN_LEMP=$RUN_LEMP"
