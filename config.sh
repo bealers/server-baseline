@@ -64,18 +64,19 @@ su - www-data -c 'curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/
 
 ################## Run configuration scripts
 
+set -x  # Enable debug mode to see what's happening
 echo "Current directory: $(pwd)"
 echo "Script location: $0"
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)/app"
+SCRIPT_DIR="/root/server-baseline/app"  # Use absolute path
 echo "Looking for scripts in: $SCRIPT_DIR"
 echo "RUN_LEMP is set to: $RUN_LEMP"
 echo "RUN_LARAVEL is set to: $RUN_LARAVEL"
 echo "Directory contents:"
-ls -la "$SCRIPT_DIR"
+ls -la "$SCRIPT_DIR" || echo "Failed to list directory"
 
 if [ -d "$SCRIPT_DIR" ]; then
     echo "Found app directory"
-    chmod +x "$SCRIPT_DIR"/*.sh
+    chmod +x "$SCRIPT_DIR"/*.sh || echo "Failed to chmod scripts"
     
     if [ "$RUN_LEMP" = true ]; then
         echo "Setting up LEMP stack with SSL..."
@@ -92,5 +93,7 @@ if [ -d "$SCRIPT_DIR" ]; then
     fi
 else
     echo "Error: app directory not found at $SCRIPT_DIR"
-    ls -la "$(dirname "$0")"
-fi 
+    pwd
+    ls -la
+fi
+set +x  # Disable debug mode 
