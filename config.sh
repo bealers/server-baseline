@@ -64,36 +64,38 @@ su - www-data -c 'curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/
 
 ################## Run configuration scripts
 
-set -x  # Enable debug mode to see what's happening
-echo "Current directory: $(pwd)"
-echo "Script location: $0"
-SCRIPT_DIR="/root/server-baseline/app"  # Use absolute path
-echo "Looking for scripts in: $SCRIPT_DIR"
-echo "RUN_LEMP is set to: $RUN_LEMP"
-echo "RUN_LARAVEL is set to: $RUN_LARAVEL"
-echo "Directory contents:"
-ls -la "$SCRIPT_DIR" || echo "Failed to list directory"
+# Remove set -e as it might be causing silent exits
+set +e
 
-if [ -d "$SCRIPT_DIR" ]; then
-    echo "Found app directory"
-    chmod +x "$SCRIPT_DIR"/*.sh || echo "Failed to chmod scripts"
-    
-    if [ "$RUN_LEMP" = true ]; then
-        echo "Setting up LEMP stack with SSL..."
-        bash "$SCRIPT_DIR/01-lemp.sh"
-    else
-        echo "Skipping LEMP setup because RUN_LEMP is not true"
-    fi
+echo "DEBUG: Starting configuration scripts section"
+echo "DEBUG: Current directory: $(pwd)"
+echo "DEBUG: RUN_LEMP=$RUN_LEMP"
+echo "DEBUG: RUN_LARAVEL=$RUN_LARAVEL"
 
-    if [ "$RUN_LARAVEL" = true ]; then
-        echo "Setting up Laravel and Node.js..."
-        bash "$SCRIPT_DIR/03-laravel-node.sh"
+if [ "$RUN_LEMP" = true ]; then
+    echo "Setting up LEMP stack with SSL..."
+    if [ -f "/root/server-baseline/app/01-lemp.sh" ]; then
+        echo "Found LEMP script, executing..."
+        bash /root/server-baseline/app/01-lemp.sh
+        LEMP_EXIT=$?
+        echo "LEMP script exited with code: $LEMP_EXIT"
     else
-        echo "Skipping Laravel setup because RUN_LARAVEL is not true"
+        echo "ERROR: LEMP script not found at /root/server-baseline/app/01-lemp.sh"
+        ls -la /root/server-baseline/app/
     fi
-else
-    echo "Error: app directory not found at $SCRIPT_DIR"
-    pwd
-    ls -la
 fi
-set +x  # Disable debug mode 
+
+if [ "$RUN_LARAVEL" = true ]; then
+    echo "Setting up Laravel and Node.js..."
+    if [ -f "/root/server-baseline/app/03-laravel-node.sh" ]; then
+        echo "Found Laravel script, executing..."
+        bash /root/server-baseline/app/03-laravel-node.sh
+        LARAVEL_EXIT=$?
+        echo "Laravel script exited with code: $LARAVEL_EXIT"
+    else
+        echo "ERROR: Laravel script not found at /root/server-baseline/app/03-laravel-node.sh"
+        ls -la /root/server-baseline/app/
+    fi
+fi
+
+echo "DEBUG: Configuration scripts section complete" 
