@@ -8,8 +8,8 @@ REPO_URL="https://github.com/bealers/bealers.com"
 DB_TYPE="mysql"
 
 # Script execution flags
-RUN_LEMP=true
-RUN_LARAVEL=true
+RUN_LEMP=false
+RUN_LARAVEL=false
 INSTALL_BINARIES=true
 
 # Prompt for configuration if running interactively
@@ -44,13 +44,13 @@ if [ -t 0 ]; then
     
     echo "Which components would you like to configure?"
     read -p "LEMP stack (Nginx, PHP, Database, SSL)? (Y/n): " lemp_choice
-    if [[ $lemp_choice == "n" || $lemp_choice == "N" ]]; then
-        RUN_LEMP=false
+    if [[ $lemp_choice != "n" && $lemp_choice != "N" ]]; then
+        RUN_LEMP=true
     fi
     
     read -p "Laravel and Node.js? (Y/n): " laravel_choice
-    if [[ $laravel_choice == "n" || $laravel_choice == "N" ]]; then
-        RUN_LARAVEL=false
+    if [[ $laravel_choice != "n" && $laravel_choice != "N" ]]; then
+        RUN_LARAVEL=true
     fi
     
     echo "Configuration:"
