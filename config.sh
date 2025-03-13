@@ -66,18 +66,25 @@ su - www-data -c 'curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)/app"
 echo "Looking for scripts in: $SCRIPT_DIR"
+echo "RUN_LEMP is set to: $RUN_LEMP"
+echo "RUN_LARAVEL is set to: $RUN_LARAVEL"
 
 if [ -d "$SCRIPT_DIR" ]; then
+    echo "Found app directory"
     chmod +x "$SCRIPT_DIR"/*.sh
     
     if [ "$RUN_LEMP" = true ]; then
         echo "Setting up LEMP stack with SSL..."
         bash "$SCRIPT_DIR/01-lemp.sh"
+    else
+        echo "Skipping LEMP setup because RUN_LEMP is not true"
     fi
 
     if [ "$RUN_LARAVEL" = true ]; then
         echo "Setting up Laravel and Node.js..."
         bash "$SCRIPT_DIR/03-laravel-node.sh"
+    else
+        echo "Skipping Laravel setup because RUN_LARAVEL is not true"
     fi
 else
     echo "Error: app directory not found at $SCRIPT_DIR"
