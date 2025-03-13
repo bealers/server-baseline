@@ -79,6 +79,12 @@ export DB_TYPE
 export RUN_LEMP
 export RUN_LARAVEL
 
+echo "Exported variables:"
+echo "MAINTENANCE_USER=$MAINTENANCE_USER"
+echo "SITE_DOMAIN=$SITE_DOMAIN"
+echo "RUN_LEMP=$RUN_LEMP"
+echo "RUN_LARAVEL=$RUN_LARAVEL"
+
 # Run the appropriate scripts
 if [ "$INSTALL_BINARIES" = true ]; then
     echo "Installing binaries..."

@@ -64,10 +64,14 @@ su - www-data -c 'curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/
 
 ################## Run configuration scripts
 
+echo "Current directory: $(pwd)"
+echo "Script location: $0"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)/app"
 echo "Looking for scripts in: $SCRIPT_DIR"
 echo "RUN_LEMP is set to: $RUN_LEMP"
 echo "RUN_LARAVEL is set to: $RUN_LARAVEL"
+echo "Directory contents:"
+ls -la "$SCRIPT_DIR"
 
 if [ -d "$SCRIPT_DIR" ]; then
     echo "Found app directory"
