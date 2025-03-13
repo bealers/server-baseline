@@ -64,7 +64,9 @@ su - www-data -c 'curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/
 
 ################## Run configuration scripts
 
-SCRIPT_DIR="$(dirname "$0")/app"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)/app"
+echo "Looking for scripts in: $SCRIPT_DIR"
+
 if [ -d "$SCRIPT_DIR" ]; then
     chmod +x "$SCRIPT_DIR"/*.sh
     
@@ -78,5 +80,6 @@ if [ -d "$SCRIPT_DIR" ]; then
         bash "$SCRIPT_DIR/03-laravel-node.sh"
     fi
 else
-    echo "Warning: app directory not found at $SCRIPT_DIR"
+    echo "Error: app directory not found at $SCRIPT_DIR"
+    ls -la "$(dirname "$0")"
 fi 
