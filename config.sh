@@ -68,33 +68,35 @@ su - www-data -c 'curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/
 set +e
 
 echo "DEBUG: Starting configuration scripts section"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+echo "DEBUG: Script directory: $SCRIPT_DIR"
 echo "DEBUG: Current directory: $(pwd)"
 echo "DEBUG: RUN_LEMP=$RUN_LEMP"
 echo "DEBUG: RUN_LARAVEL=$RUN_LARAVEL"
 
 if [ "$RUN_LEMP" = true ]; then
     echo "Setting up LEMP stack with SSL..."
-    if [ -f "/root/server-baseline/app/01-lemp.sh" ]; then
+    if [ -f "$SCRIPT_DIR/app/01-lemp.sh" ]; then
         echo "Found LEMP script, executing..."
-        bash /root/server-baseline/app/01-lemp.sh
+        bash "$SCRIPT_DIR/app/01-lemp.sh"
         LEMP_EXIT=$?
         echo "LEMP script exited with code: $LEMP_EXIT"
     else
-        echo "ERROR: LEMP script not found at /root/server-baseline/app/01-lemp.sh"
-        ls -la /root/server-baseline/app/
+        echo "ERROR: LEMP script not found at $SCRIPT_DIR/app/01-lemp.sh"
+        ls -la "$SCRIPT_DIR/app/"
     fi
 fi
 
 if [ "$RUN_LARAVEL" = true ]; then
     echo "Setting up Laravel and Node.js..."
-    if [ -f "/root/server-baseline/app/03-laravel-node.sh" ]; then
+    if [ -f "$SCRIPT_DIR/app/03-laravel-node.sh" ]; then
         echo "Found Laravel script, executing..."
-        bash /root/server-baseline/app/03-laravel-node.sh
+        bash "$SCRIPT_DIR/app/03-laravel-node.sh"
         LARAVEL_EXIT=$?
         echo "Laravel script exited with code: $LARAVEL_EXIT"
     else
-        echo "ERROR: Laravel script not found at /root/server-baseline/app/03-laravel-node.sh"
-        ls -la /root/server-baseline/app/
+        echo "ERROR: Laravel script not found at $SCRIPT_DIR/app/03-laravel-node.sh"
+        ls -la "$SCRIPT_DIR/app/"
     fi
 fi
 
