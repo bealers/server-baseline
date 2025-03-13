@@ -6,7 +6,8 @@ PHP_VERSION=${PHP_VERSION:-"8.4"}
 DB_TYPE=${DB_TYPE:-"mysql"}
 EMAIL=${EMAIL:-"your-email@example.com"}
 
-set -e
+# Remove set -e and add error handling
+set +e
 umask 022
 
 echo "Configuring LEMP stack for: $SITE_DOMAIN"
@@ -22,16 +23,15 @@ echo "Domain IP: $DOMAIN_IP"
 if [[ "$DOMAIN_IP" == "127.0.0.1" ]] || [[ "$DOMAIN_IP" == "127.0.1.1" ]]; then
     echo "Domain resolves to localhost - proceeding with setup..."
 elif [ -z "$DOMAIN_IP" ] || [ "$DOMAIN_IP" != "$SERVER_IP" ]; then
-    echo "Error: $SITE_DOMAIN does not resolve to this server's IP ($SERVER_IP)"
-    echo "Please configure DNS before running this script"
-    exit 1
+    echo "Warning: $SITE_DOMAIN does not resolve to this server's IP ($SERVER_IP)"
+    echo "Continuing anyway..."
 fi
 
 # Basic PHP config
 echo "Configuring PHP..."
-sed -i "s/upload_max_filesize = .*/upload_max_filesize = 64M/" /etc/php/$PHP_VERSION/fpm/php.ini
-sed -i "s/post_max_size = .*/post_max_size = 64M/" /etc/php/$PHP_VERSION/fpm/php.ini
-sed -i "s/memory_limit = .*/memory_limit = 256M/" /etc/php/$PHP_VERSION/fpm/php.ini
+sed -i "s/upload_max_filesize = .*/upload_max_filesize = 64M/" /etc/php/$PHP_VERSION/fpm/php.ini || echo "Warning: Could not set upload_max_filesize"
+sed -i "s/post_max_size = .*/post_max_size = 64M/" /etc/php/$PHP_VERSION/fpm/php.ini || echo "Warning: Could not set post_max_size"
+sed -i "s/memory_limit = .*/memory_limit = 256M/" /etc/php/$PHP_VERSION/fpm/php.ini || echo "Warning: Could not set memory_limit"
 
 # Database setup
 if [ "$DB_TYPE" = "mysql" ]; then

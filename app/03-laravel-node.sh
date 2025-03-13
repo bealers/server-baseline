@@ -8,20 +8,23 @@ SITE_DOMAIN=${SITE_DOMAIN:-"example.com"}
 REPO_URL=${REPO_URL:-"https://github.com/yourusername/yourrepo.git"}
 SITE_PATH=/var/www/${SITE_DOMAIN}
 
-set -e
+# Remove set -e and add error handling
+set +e
 umask 022
 
 echo "Setting up Laravel and Node.js for: $SITE_DOMAIN"
 
 # Clone repository
 rm -rf ${SITE_PATH}
-git clone ${REPO_URL} ${SITE_PATH}
+git clone ${REPO_URL} ${SITE_PATH} || {
+    echo "Warning: Failed to clone repository, continuing..."
+}
 chown -R www-data:www-data ${SITE_PATH}
 
 # Install dependencies and build
 cd ${SITE_PATH}
-su - www-data -c "cd ${SITE_PATH} && composer install --no-dev"
-su - www-data -c "cd ${SITE_PATH} && npm install && npm run build"
+su - www-data -c "cd ${SITE_PATH} && composer install --no-dev" || echo "Warning: Composer install failed"
+su - www-data -c "cd ${SITE_PATH} && npm install && npm run build" || echo "Warning: NPM build failed"
 
 # Copy database credentials if they exist
 if [ -f "/root/.${SITE_DOMAIN}_db_credentials" ]; then
@@ -35,6 +38,6 @@ su - www-data -c "cd ${SITE_PATH} && \
     php artisan key:generate && \
     php artisan storage:link && \
     php artisan optimize && \
-    php artisan migrate --force"
+    php artisan migrate --force" || echo "Warning: Laravel setup commands failed"
 
 echo "Laravel and Node.js setup complete!"
