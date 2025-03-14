@@ -112,3 +112,9 @@ if [ "$RUN_LARAVEL" = true ]; then
 fi
 
 echo "DEBUG: Configuration scripts section complete" 
+# Run hardening script
+if [ -f "./app/04-hardening.sh" ]; then
+    bash "./app/04-hardening.sh"
+    HARDENING_EXIT=$?
+    logger "Security hardening completed with exit code: $HARDENING_EXIT"
+fi

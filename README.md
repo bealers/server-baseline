@@ -10,12 +10,14 @@ Scripts for setting up a production server with LEMP stack (Linux, Nginx, MySQL/
 - LEMP stack (Linux, Nginx, MySQL/PostgreSQL/SQLite, PHP)
 - Let's Encrypt SSL certificates
 - Laravel and Node.js setup
+- Security hardening with fail2ban to protect against brute force attacks
 
 ## Production Scripts
 
 - `setup.sh` - Main setup script
 - `app/01-lemp.sh` - Sets up Nginx, PHP, database, and SSL
 - `app/03-laravel-node.sh` - Sets up Laravel and Node.js
+- `app/04-hardening.sh` - Configures fail2ban and other security measures
 - `app/update-domain.sh` - Helper script to change domains after initial setup
 
 ## Usage
