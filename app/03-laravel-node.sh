@@ -22,48 +22,68 @@ rm -rf ${SITE_PATH}
 mkdir -p ${SITE_PATH}
 chown www-data:www-data ${SITE_PATH}
 
-# Clone repository as www-data
+# Clone repository with improved approach
 echo "Cloning repository..."
-if [ "$REPO_ACCESS_TYPE" = "ssh" ]; then
-    # Test SSH connection first
-    echo "Testing SSH connection to GitHub..."
-    su - www-data -c "ssh -T git@github.com || true"
+
+# First attempt: Try direct clone as www-data
+echo "Attempting to clone as www-data..."
+su - www-data -c "GIT_SSH_COMMAND='ssh -o StrictHostKeyChecking=no' git clone ${REPO_URL} ${SITE_PATH}"
+CLONE_EXIT_CODE=$?
+
+# If that fails and we're using SSH, try alternative methods
+if [ $CLONE_EXIT_CODE -ne 0 ] && [ "$REPO_ACCESS_TYPE" = "ssh" ]; then
+    echo "Direct clone failed. Trying alternative methods..."
     
-    # Clone using SSH
-    su - www-data -c "GIT_SSH_COMMAND='ssh -o StrictHostKeyChecking=no' git clone ${REPO_URL} ${SITE_PATH}" || {
-        echo "Error: Failed to clone repository using SSH."
-        echo "Please check that your SSH keys are properly set up and have access to the repository."
-        echo "You can manually clone the repository after setup using:"
-        echo "  sudo -u www-data git clone ${REPO_URL} ${SITE_PATH}"
-        
-        # Create a minimal placeholder structure
+    # Method 2: Try using the git-with-ssh helper (uses maintenance user's credentials)
+    if [ -f "/usr/local/bin/git-with-ssh" ]; then
+        echo "Trying to clone using maintenance user's SSH credentials..."
+        rm -rf ${SITE_PATH}
         mkdir -p ${SITE_PATH}
-        touch ${SITE_PATH}/.env.example
-        mkdir -p ${SITE_PATH}/public
-        echo "<html><body><h1>Site under construction</h1></body></html>" > ${SITE_PATH}/public/index.html
-        chown -R www-data:www-data ${SITE_PATH}
-    }
-else
-    # Standard HTTPS clone (may fail for private repos without credentials)
-    su - www-data -c "git clone ${REPO_URL} ${SITE_PATH}" || {
-        echo "Warning: Failed to clone repository using HTTPS."
-        echo "If this is a private repository, you should use SSH access instead."
-        echo "You can manually clone the repository after setup using:"
-        echo "  sudo -u www-data git clone ${REPO_URL} ${SITE_PATH}"
         
-        # Create a minimal placeholder structure
+        # Clone using the helper script
+        cd $(dirname ${SITE_PATH})
+        /usr/local/bin/git-with-ssh clone ${REPO_URL} ${SITE_DOMAIN}
+        CLONE_EXIT_CODE=$?
+        
+        # Fix permissions if successful
+        if [ $CLONE_EXIT_CODE -eq 0 ]; then
+            echo "Clone successful! Fixing permissions..."
+            chown -R www-data:www-data ${SITE_PATH}
+        fi
+    fi
+    
+    # Method 3: Last resort - clone as the maintenance user directly
+    if [ $CLONE_EXIT_CODE -ne 0 ]; then
+        echo "Trying to clone as maintenance user..."
+        rm -rf ${SITE_PATH}
         mkdir -p ${SITE_PATH}
-        touch ${SITE_PATH}/.env.example
-        mkdir -p ${SITE_PATH}/public
-        echo "<html><body><h1>Site under construction</h1></body></html>" > ${SITE_PATH}/public/index.html
-        chown -R www-data:www-data ${SITE_PATH}
-    }
+        
+        # Clone as maintenance user
+        sudo -u ${MAINTENANCE_USER} git clone ${REPO_URL} ${SITE_PATH}
+        CLONE_EXIT_CODE=$?
+        
+        # Fix permissions if successful
+        if [ $CLONE_EXIT_CODE -eq 0 ]; then
+            echo "Clone successful! Fixing permissions..."
+            chown -R www-data:www-data ${SITE_PATH}
+        fi
+    fi
 fi
 
-# Check if repository was successfully cloned
-if [ ! -d "${SITE_PATH}/.git" ]; then
-    echo "Repository not fully cloned. Created placeholder structure instead."
-    echo "Please manually clone your repository after setup is complete."
+# If all methods failed, create a placeholder
+if [ $CLONE_EXIT_CODE -ne 0 ]; then
+    echo "All clone attempts failed. Creating placeholder structure."
+    echo "You can manually clone your repository after setup using one of these commands:"
+    echo "  As www-data: sudo -u www-data git clone ${REPO_URL} ${SITE_PATH}"
+    echo "  As ${MAINTENANCE_USER}: sudo -u ${MAINTENANCE_USER} git clone ${REPO_URL} ${SITE_PATH} && sudo chown -R www-data:www-data ${SITE_PATH}"
+    
+    # Create placeholder
+    mkdir -p ${SITE_PATH}/public
+    echo "<html><body><h1>Site under construction</h1><p>Repository clone failed during setup.</p></body></html>" > ${SITE_PATH}/public/index.html
+    touch ${SITE_PATH}/.env.example
+    chown -R www-data:www-data ${SITE_PATH}
+else
+    echo "Repository cloned successfully!"
 fi
 
 # Set up Laravel environment first (if it exists)

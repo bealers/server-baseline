@@ -49,54 +49,56 @@ usermod -d /var/www -s /bin/bash www-data
 mkdir -p /var/www/.nvm /var/www/.npm /var/www/.config /var/www/.ssh
 chown -R www-data:www-data /var/www
 
-# Set up SSH key configuration for repository access
-if [ "$REPO_ACCESS_TYPE" = "ssh" ]; then
-    echo "Setting up SSH keys for repository access..."
+# SIMPLIFIED: Copy SSH keys from root to both maintenance user and www-data
+# This ensures both users have the same SSH keys that were used during server setup
+echo "Setting up SSH keys for repository access..."
+
+# First, make sure the maintenance user has the SSH key from root
+if ls /root/.ssh/id_* 1> /dev/null 2>&1; then
+    echo "Copying SSH keys from root to $MAINTENANCE_USER..."
+    cp /root/.ssh/id_* /home/$MAINTENANCE_USER/.ssh/ 2>/dev/null
+    chown $MAINTENANCE_USER:$MAINTENANCE_USER /home/$MAINTENANCE_USER/.ssh/*
+    chmod 600 /home/$MAINTENANCE_USER/.ssh/id_*
+fi
+
+# Then copy the same keys to www-data
+echo "Copying SSH keys from root to www-data..."
+if ls /root/.ssh/id_* 1> /dev/null 2>&1; then
+    cp /root/.ssh/id_* /var/www/.ssh/ 2>/dev/null
     
-    if [ "$USE_DEPLOY_KEY" = true ]; then
-        # Generate a new deploy key
-        echo "Generating a new deploy key for www-data..."
-        su - www-data -c "ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N ''" || echo "SSH key generation failed"
-        
-        # Display the public key for adding to GitHub
-        echo "==============================================="
-        echo "IMPORTANT: Add this deploy key to your repository:"
-        cat /var/www/.ssh/id_ed25519.pub
-        echo "==============================================="
-        echo "Press Enter after you've added the key to continue..."
-        read -p ""
-    else
-        # Copy the maintenance user's SSH key to www-data
-        echo "Copying $MAINTENANCE_USER's SSH key to www-data..."
-        cp /home/$MAINTENANCE_USER/.ssh/id_* /var/www/.ssh/ 2>/dev/null || {
-            echo "No SSH keys found for $MAINTENANCE_USER. Copying root keys instead..."
-            cp /root/.ssh/id_* /var/www/.ssh/ 2>/dev/null || {
-                echo "Warning: No SSH keys found to copy. Repository access may fail."
-            }
-        }
-    fi
-    
-    # Set up SSH config for GitHub to avoid host verification issues
-    cat > /var/www/.ssh/config << EOF
+    # Set proper ownership and permissions
+    chown www-data:www-data /var/www/.ssh/*
+    chmod 600 /var/www/.ssh/id_*
+else
+    echo "WARNING: No SSH keys found in /root/.ssh/ - repository access may fail"
+    echo "You'll need to manually set up SSH keys for www-data after installation"
+fi
+
+# Set up known_hosts and SSH config for GitHub
+cat > /var/www/.ssh/config << 'EOF'
 Host github.com
     StrictHostKeyChecking no
     User git
 EOF
+
+chown www-data:www-data /var/www/.ssh/config
+chmod 600 /var/www/.ssh/config
+
+# Also set up a failsafe to temporarily make www-data use the maintenance user's SSH agent
+if [ "$REPO_ACCESS_TYPE" = "ssh" ]; then
+    echo "Setting up Git helper scripts..."
     
-    # Set permissions
-    chown -R www-data:www-data /var/www/.ssh
-    chmod 700 /var/www/.ssh
-    chmod 600 /var/www/.ssh/*
+    # Create a script to allow www-data to use maintenance user's SSH agent
+    cat > /usr/local/bin/git-with-ssh << EOF
+#!/bin/bash
+sudo -u $MAINTENANCE_USER ssh-add -l > /dev/null || echo "No identities in SSH agent"
+sudo -E -u $MAINTENANCE_USER GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=no" git "\$@"
+EOF
     
-    # Test SSH connection to GitHub
-    echo "Testing SSH connection to GitHub..."
-    su - www-data -c "ssh -T git@github.com || true"
-else
-    # Standard SSH setup for www-data (non-git related)
-    cp /root/.ssh/authorized_keys /var/www/.ssh/ 2>/dev/null || true
-    chmod 700 /var/www/.ssh
-    chmod 600 /var/www/.ssh/authorized_keys 2>/dev/null || true
-    chown -R www-data:www-data /var/www/.ssh
+    chmod +x /usr/local/bin/git-with-ssh
+    
+    echo "Created git helper script: /usr/local/bin/git-with-ssh"
+    echo "You can use this later if needed: sudo git-with-ssh clone git@github.com:yourusername/repo.git"
 fi
 
 # Add NVM to www-data's profile
