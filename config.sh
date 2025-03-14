@@ -49,10 +49,55 @@ usermod -d /var/www -s /bin/bash www-data
 mkdir -p /var/www/.nvm /var/www/.npm /var/www/.config /var/www/.ssh
 chown -R www-data:www-data /var/www
 
-# Set up SSH for www-data
-cp /root/.ssh/authorized_keys /var/www/.ssh/ 2>/dev/null || true
-chmod 700 /var/www/.ssh
-chmod 600 /var/www/.ssh/authorized_keys 2>/dev/null || true
+# Set up SSH key configuration for repository access
+if [ "$REPO_ACCESS_TYPE" = "ssh" ]; then
+    echo "Setting up SSH keys for repository access..."
+    
+    if [ "$USE_DEPLOY_KEY" = true ]; then
+        # Generate a new deploy key
+        echo "Generating a new deploy key for www-data..."
+        su - www-data -c "ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N ''" || echo "SSH key generation failed"
+        
+        # Display the public key for adding to GitHub
+        echo "==============================================="
+        echo "IMPORTANT: Add this deploy key to your repository:"
+        cat /var/www/.ssh/id_ed25519.pub
+        echo "==============================================="
+        echo "Press Enter after you've added the key to continue..."
+        read -p ""
+    else
+        # Copy the maintenance user's SSH key to www-data
+        echo "Copying $MAINTENANCE_USER's SSH key to www-data..."
+        cp /home/$MAINTENANCE_USER/.ssh/id_* /var/www/.ssh/ 2>/dev/null || {
+            echo "No SSH keys found for $MAINTENANCE_USER. Copying root keys instead..."
+            cp /root/.ssh/id_* /var/www/.ssh/ 2>/dev/null || {
+                echo "Warning: No SSH keys found to copy. Repository access may fail."
+            }
+        }
+    fi
+    
+    # Set up SSH config for GitHub to avoid host verification issues
+    cat > /var/www/.ssh/config << EOF
+Host github.com
+    StrictHostKeyChecking no
+    User git
+EOF
+    
+    # Set permissions
+    chown -R www-data:www-data /var/www/.ssh
+    chmod 700 /var/www/.ssh
+    chmod 600 /var/www/.ssh/*
+    
+    # Test SSH connection to GitHub
+    echo "Testing SSH connection to GitHub..."
+    su - www-data -c "ssh -T git@github.com || true"
+else
+    # Standard SSH setup for www-data (non-git related)
+    cp /root/.ssh/authorized_keys /var/www/.ssh/ 2>/dev/null || true
+    chmod 700 /var/www/.ssh
+    chmod 600 /var/www/.ssh/authorized_keys 2>/dev/null || true
+    chown -R www-data:www-data /var/www/.ssh
+fi
 
 # Add NVM to www-data's profile
 cat > /var/www/.bashrc << 'EOF'
@@ -84,6 +129,7 @@ echo "DEBUG: Script directory: $SCRIPT_DIR"
 echo "DEBUG: Current directory: $(pwd)"
 echo "DEBUG: RUN_LEMP=$RUN_LEMP"
 echo "DEBUG: RUN_LARAVEL=$RUN_LARAVEL"
+echo "DEBUG: RUN_HARDENING=$RUN_HARDENING"
 
 if [ "$RUN_LEMP" = true ]; then
     echo "Setting up LEMP stack with SSL..."
@@ -112,8 +158,10 @@ if [ "$RUN_LARAVEL" = true ]; then
 fi
 
 echo "DEBUG: Configuration scripts section complete" 
+
 # Run hardening script
-if [ -f "./app/04-hardening.sh" ]; then
+if [ "$RUN_HARDENING" = true ] && [ -f "./app/04-hardening.sh" ]; then
+    echo "Running security hardening script..."
     bash "./app/04-hardening.sh"
     HARDENING_EXIT=$?
     logger "Security hardening completed with exit code: $HARDENING_EXIT"
