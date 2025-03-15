@@ -5,18 +5,16 @@
 # - SSH hardening
 # - Basic security packages
 
-# Create log directory
 mkdir -p /var/log/server-setup
 LOGFILE="/var/log/server-setup/02-security-baseline.log"
 
-# Function to log messages
+# basic logger
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOGFILE"
 }
 
 log "Starting security baseline setup"
 
-# Install security packages
 log "Installing security packages"
 apt-get update -qq
 apt-get install -y -qq \
@@ -25,7 +23,6 @@ apt-get install -y -qq \
     unattended-upgrades \
     apt-listchanges
 
-# Configure firewall
 log "Configuring firewall"
 # Check if UFW is already active with our rules
 if ! ufw status | grep -q "22/tcp.*ALLOW"; then
@@ -42,7 +39,6 @@ else
     log "UFW is already configured with required rules"
 fi
 
-# Configure automatic updates
 log "Configuring unattended-upgrades"
 cat > /etc/apt/apt.conf.d/20auto-upgrades << 'EOF'
 APT::Periodic::Update-Package-Lists "1";
@@ -62,12 +58,9 @@ Unattended-Upgrade::Remove-Unused-Dependencies "true";
 Unattended-Upgrade::Automatic-Reboot "false";
 EOF
 
-# Basic SSH hardening
 log "Configuring SSH hardening"
-# Backup original SSH config
 cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bak
 
-# Update SSH config
 cat > /etc/ssh/sshd_config.d/hardening.conf << 'EOF'
 # Security hardening for SSH
 Protocol 2
@@ -92,7 +85,6 @@ else
     # Don't exit with error to allow the script to continue
 fi
 
-# Set up basic fail2ban
 log "Configuring basic fail2ban"
 mkdir -p /etc/fail2ban/jail.d
 
@@ -112,7 +104,6 @@ systemctl restart fail2ban
 log "Checking fail2ban status"
 fail2ban-client status
 
-# Verify security baseline
 log "Security baseline verification:"
 log "Firewall status:"
 ufw status

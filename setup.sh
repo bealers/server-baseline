@@ -7,13 +7,16 @@ CONFIG_FILE="$(dirname "$0")/server-config.env"
 STEP_LOG_FILE="$(dirname "$0")/completed-steps.log"
 
 # Default values
-MAINTENANCE_USER="bealers"
+MAINTENANCE_USER="bealers" # has sudo access, you'll login with this user day to day
 SITE_DOMAIN="bealers.com"
-EMAIL="darren.beale@siftware.com"
+EMAIL="working-email-for-your-ssl-cert@example.com"
+
 PHP_VERSION="8.4"
-REPO_URL="https://github.com/bealers/bealers.com.git"
-DB_TYPE="sqlite"
-REPO_ACCESS_TYPE="https"
+REPO_URL="https://github.com/your/repo.git" # private repo is ok here
+DB_TYPE="sqlite" # mysql, pgsql, sqlite
+
+# TODO, streamline, remove the need for me to set these
+REPO_ACCESS_TYPE="https" # ssh, https
 USE_DEPLOY_KEY=false
 DEPLOY_KEY_PATH=""
 
@@ -64,7 +67,7 @@ DEPLOY_KEY_PATH="$DEPLOY_KEY_PATH"
 EOF
 }
 
-# Function to gather user inputs
+# UI, annoying and britle, we can do better
 gather_inputs() {
     echo "==== Server Setup Configuration ===="
     

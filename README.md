@@ -1,28 +1,16 @@
 # Default Server Build
 
-Scripts for setting up a production server with LEMP stack (Linux, Nginx, MySQL/PostgreSQL/SQLite, PHP), Let's Encrypt SSL, and Laravel/Node.js.
+Opinionated Laravel/Node web server setup scripts. Bash only, zero dependencies.
 
 ## What's Included
 
 - A modular, step-based server setup framework that can resume after failures
 - SSH key-based login for the maintenance user (with sudo access)
 - LEMP stack (Linux, Nginx, MySQL/PostgreSQL/SQLite, PHP)
-- Let's Encrypt SSL certificates
 - Laravel and Node.js setup with proper dependency management
-- Security hardening with firewall and fail2ban
+- Let's Encrypt SSL certificates
+ Security hardening with firewall and fail2ban
 - Dedicated deploy key for secure repository access
-
-## Architecture
-
-The server build follows a step-based architecture:
-
-1. **System Basics**: Users, SSH, timezone, locale, and basic packages
-2. **Security Baseline**: Firewall, SSH hardening, and basic security
-3. **Web Stack**: Nginx, PHP, database, and SSL
-4. **Application Deploy**: Code checkout and dependencies
-5. **Advanced Hardening**: Additional security measures and hardening
-
-Each step is idempotent (can be run multiple times safely) and tracks completion status.
 
 ## Scripts
 
@@ -32,6 +20,8 @@ Each step is idempotent (can be run multiple times safely) and tracks completion
 - `steps/03-web-stack.sh` - Installs and configures Nginx, PHP, and database
 - `steps/04-application-deploy.sh` - Deploys application code and dependencies
 - `steps/05-advanced-hardening.sh` - Configures advanced security measures
+
+Each step is idempotent (can be run multiple times safely) and tracks completion status.
 
 ## Usage
 

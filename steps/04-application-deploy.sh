@@ -5,11 +5,10 @@
 # - Dependencies
 # - Configuration
 
-# Create log directory
 mkdir -p /var/log/server-setup
 LOGFILE="/var/log/server-setup/04-application-deploy.log"
 
-# Function to log messages
+# basic logger
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOGFILE"
 }

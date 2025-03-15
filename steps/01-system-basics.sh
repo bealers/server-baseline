@@ -11,11 +11,10 @@ set -e
 
 echo "=== Step 1: Setting up system basics ==="
 
-# Create log directory
 mkdir -p /var/log/server-setup
 LOGFILE="/var/log/server-setup/01-system-basics.log"
 
-# Function to log messages
+# Function to   
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOGFILE"
 }
