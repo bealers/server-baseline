@@ -131,6 +131,52 @@ EOF
 else
     log "Repository cloned successfully"
     
+    # Set up proper Node.js environment for www-data
+    log "Setting up Node.js environment for www-data"
+    
+    # Ensure NVM is properly installed and configured
+    if [ ! -f "/var/www/.nvm/nvm.sh" ]; then
+        log "Installing NVM for www-data"
+        su - www-data -c 'curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash'
+    fi
+    
+    # Create a .nvmrc file if not present
+    if [ ! -f "${SITE_PATH}/.nvmrc" ] && [ -f "${SITE_PATH}/package.json" ]; then
+        log "Creating .nvmrc file with LTS version"
+        echo "lts/*" > "${SITE_PATH}/.nvmrc"
+        chown www-data:www-data "${SITE_PATH}/.nvmrc"
+    fi
+    
+    # Ensure NVM is properly sourced for www-data
+    NVM_SOURCING='export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"'
+    
+    # Generate a helper script for npm commands
+    log "Creating npm helper script for www-data"
+    cat > /var/www/npm-helper.sh << 'EOF'
+#!/bin/bash
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+exec "$@"
+EOF
+    chmod +x /var/www/npm-helper.sh
+    chown www-data:www-data /var/www/npm-helper.sh
+    
+    # Add automatic NVM sourcing to www-data's .profile
+    if ! grep -q "NVM_DIR" /var/www/.profile 2>/dev/null; then
+        log "Adding NVM sourcing to www-data's .profile"
+        cat >> /var/www/.profile << 'EOF'
+# Automatically source NVM
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+[ -s "$NVM_DIR/bash_completion" ] && source "$NVM_DIR/bash_completion"
+EOF
+        chown www-data:www-data /var/www/.profile
+    fi
+    
+    # Install Node.js via NVM
+    log "Installing Node.js via NVM"
+    su - www-data -c "$NVM_SOURCING && cd ${SITE_PATH} && nvm install"
+    
     # Set up environment configuration
     if [ -f "${SITE_PATH}/.env.example" ]; then
         log "Setting up environment configuration"
@@ -162,14 +208,9 @@ else
             su - www-data -c "cd ${SITE_PATH} && php artisan storage:link" || log "WARNING: Storage link failed"
             su - www-data -c "cd ${SITE_PATH} && php artisan optimize" || log "WARNING: Optimization failed"
             
-            # Ask about running migrations
-            read -p "Do you want to run database migrations? This might modify your database. (y/N): " confirm
-            if [[ $confirm == "y" || $confirm == "Y" ]]; then
-                log "Running database migrations"
-                su - www-data -c "cd ${SITE_PATH} && php artisan migrate --force" || log "WARNING: Migrations failed"
-            else
-                log "Skipping database migrations"
-            fi
+            # Automatically run migrations (no prompt)
+            log "Running database migrations"
+            su - www-data -c "cd ${SITE_PATH} && php artisan migrate --force" || log "WARNING: Migrations failed"
         else
             log "Not a Laravel application, skipping artisan commands"
         fi
@@ -180,18 +221,83 @@ else
     # Install Node.js dependencies
     if [ -f "${SITE_PATH}/package.json" ]; then
         log "Installing Node.js dependencies"
-        su - www-data -c "cd ${SITE_PATH} && source ~/.nvm/nvm.sh && npm ci" || {
-            log "WARNING: NPM installation failed, trying npm install"
-            su - www-data -c "cd ${SITE_PATH} && source ~/.nvm/nvm.sh && npm install" || {
+        
+        # Use the helper script to run npm commands
+        su - www-data -c "cd ${SITE_PATH} && /var/www/npm-helper.sh npm ci" || {
+            log "WARNING: NPM CI failed, trying npm install"
+            su - www-data -c "cd ${SITE_PATH} && /var/www/npm-helper.sh npm install" || {
                 log "WARNING: NPM install also failed"
             }
         }
         
-        # Build assets
+        # COMPREHENSIVE BINARY PERMISSION FIXING
+        if [ -d "${SITE_PATH}/node_modules" ]; then
+            log "Setting proper permissions for all Node.js binaries and executables"
+            
+            # Fix overall node_modules permissions (avoid too restrictive permissions)
+            chmod -R 755 "${SITE_PATH}/node_modules"
+            
+            # Method 1: Fix all .bin directories
+            find "${SITE_PATH}/node_modules" -type d -name ".bin" -exec chmod -R 755 {} \; 2>/dev/null || true
+            find "${SITE_PATH}/node_modules" -type d -name ".bin" -exec find {} -type f -exec chmod +x {} \; \; 2>/dev/null || true
+            
+            # Method 2: Fix all files in bin directories
+            find "${SITE_PATH}/node_modules" -type d -name "bin" -exec chmod -R 755 {} \; 2>/dev/null || true
+            find "${SITE_PATH}/node_modules" -type d -name "bin" -exec find {} -type f -exec chmod +x {} \; \; 2>/dev/null || true
+            
+            # Method 3: Explicitly find binary packages that often cause issues
+            for PKG in esbuild vite rollup terser postcss parcel webpack babel tsc; do
+                find "${SITE_PATH}/node_modules" -path "*/$PKG*/bin/*" -type f -exec chmod +x {} \; 2>/dev/null || true
+            done
+            
+            # Method 4: Check for files with shebang and make them executable
+            log "Finding and making executable all files with shebang..."
+            find "${SITE_PATH}/node_modules" -type f -exec grep -l "^#!/" {} \; 2>/dev/null | xargs -r chmod +x
+            
+            # Special handling for esbuild which often causes issues
+            if [ -d "${SITE_PATH}/node_modules/@esbuild" ]; then
+                find "${SITE_PATH}/node_modules/@esbuild" -type f -path "*/bin/*" -exec chmod +x {} \; 2>/dev/null || true
+                # Direct fix for common esbuild binary
+                chmod +x "${SITE_PATH}/node_modules/@esbuild/linux-x64/bin/esbuild" 2>/dev/null || true
+            fi
+            
+            # Fix ownership for everything in node_modules
+            chown -R www-data:www-data "${SITE_PATH}/node_modules"
+            
+            log "Node.js binary permissions fix completed"
+        fi
+        
+        # Build assets with better error handling and fixed permissions
         if grep -q "\"build\"" "${SITE_PATH}/package.json"; then
             log "Building assets"
-            su - www-data -c "cd ${SITE_PATH} && source ~/.nvm/nvm.sh && npm run build" || {
-                log "WARNING: Asset build failed"
+            # Run the build
+            su - www-data -c "cd ${SITE_PATH} && /var/www/npm-helper.sh npm run build" || {
+                log "WARNING: Asset build failed, attempting fallback methods"
+                
+                # Try direct vite execution if it exists
+                if [ -f "${SITE_PATH}/node_modules/.bin/vite" ]; then
+                    log "Trying direct vite execution..."
+                    su - www-data -c "cd ${SITE_PATH} && /var/www/npm-helper.sh ./node_modules/.bin/vite build" || {
+                        log "WARNING: Direct vite execution also failed"
+                    }
+                fi
+                
+                # If using esbuild directly may also be an option
+                if [ -f "${SITE_PATH}/node_modules/.bin/esbuild" ]; then
+                    log "Checking esbuild binary permissions..."
+                    chmod +x "${SITE_PATH}/node_modules/.bin/esbuild"
+                    chmod +x "${SITE_PATH}/node_modules/@esbuild/linux-x64/bin/esbuild" 2>/dev/null || true
+                fi
+                
+                # Try one more time with npm run build after fixing permissions
+                log "Trying build again after fixing permissions..."
+                su - www-data -c "cd ${SITE_PATH} && /var/www/npm-helper.sh npm run build" || {
+                    log "WARNING: All build attempts failed"
+                    log "You may need to manually build the assets after installation"
+                    log "  1. SSH as www-data or your maintenance user"
+                    log "  2. cd ${SITE_PATH}"
+                    log "  3. Run: ./npm-run run build"
+                }
             }
         else
             log "No build script found in package.json"
@@ -215,7 +321,28 @@ else
         chmod -R 775 ${SITE_PATH}/bootstrap/cache
     fi
     
+    # Re-fix executable permissions for script files
+    find ${SITE_PATH} -name "*.sh" -type f -exec chmod +x {} \;
+    if [ -d "${SITE_PATH}/node_modules" ]; then
+        find "${SITE_PATH}/node_modules" -path "*/bin/*" -type f -exec chmod +x {} \; 2>/dev/null || true
+        find "${SITE_PATH}/node_modules/.bin" -type f -exec chmod +x {} \; 2>/dev/null || true
+    fi
+    
+    # Fix ownership
     chown -R www-data:www-data ${SITE_PATH}
+    
+    # Create an npm runner script in the site directory
+    log "Creating npm runner script for the site"
+    cat > "${SITE_PATH}/npm-run" << 'EOF'
+#!/bin/bash
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+npm "$@"
+EOF
+    chmod +x "${SITE_PATH}/npm-run"
+    chown www-data:www-data "${SITE_PATH}/npm-run"
+    
+    log "You can now run npm commands using: cd ${SITE_PATH} && sudo -u www-data ./npm-run [command]"
 fi
 
 log "Application deployment completed"

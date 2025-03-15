@@ -19,7 +19,15 @@ log "Starting advanced security hardening"
 # Install additional security packages
 log "Installing additional security packages"
 apt-get update -qq
-apt-get install -y -qq \
+
+# Pre-configure iptables-persistent to avoid prompts
+log "Pre-configuring iptables-persistent"
+echo "iptables-persistent iptables-persistent/autosave_v4 boolean true" | debconf-set-selections
+echo "iptables-persistent iptables-persistent/autosave_v6 boolean true" | debconf-set-selections
+
+# Install packages
+log "Installing security packages"
+DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
     logwatch \
     rkhunter \
     lynis \

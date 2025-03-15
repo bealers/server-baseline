@@ -6,31 +6,27 @@
 # - Database (MySQL/PostgreSQL/SQLite)
 # - SSL/TLS
 
-# Create log directory
 mkdir -p /var/log/server-setup
 LOGFILE="/var/log/server-setup/03-web-stack.log"
 
-# Function to log messages
+# Basic logger
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOGFILE"
 }
 
 log "Starting web stack setup"
 
-# Install Nginx
 log "Installing Nginx"
 apt-get update -qq
 apt-get install -y -qq nginx
 
-# Install certbot for Let's Encrypt
 log "Installing Certbot for SSL/TLS"
 apt-get install -y -qq certbot python3-certbot-nginx
 
-# Install PHP
 PHP_VERSION=${PHP_VERSION:-"8.2"}
 log "Installing PHP $PHP_VERSION"
 
-# Add PHP repository if not already added
+# Add PHP ppa for new PHP versions
 if ! apt-key list | grep -q -i ondrej/php; then
     log "Adding PHP repository"
     apt-get install -y -qq software-properties-common
@@ -38,7 +34,6 @@ if ! apt-key list | grep -q -i ondrej/php; then
     apt-get update -qq
 fi
 
-# Install PHP and extensions
 log "Installing PHP packages"
 apt-get install -y -qq \
     php${PHP_VERSION}-fpm \
@@ -244,23 +239,128 @@ fi
 
 # Set up SSL with Let's Encrypt
 log "Setting up SSL with Let's Encrypt for $SITE_DOMAIN"
+
 # Check if the domain is already configured with SSL
 if [ ! -d "/etc/letsencrypt/live/${SITE_DOMAIN}" ]; then
-    # Check if DNS is properly configured
+    # Get the server's public IP
     PUBLIC_IP=$(curl -s ifconfig.me)
-    DOMAIN_IP=$(dig +short ${SITE_DOMAIN})
+    log "Server public IP: $PUBLIC_IP"
     
-    if [ "$PUBLIC_IP" = "$DOMAIN_IP" ]; then
-        log "DNS is properly configured, proceeding with SSL setup"
-        certbot --nginx -d ${SITE_DOMAIN} -d www.${SITE_DOMAIN} --non-interactive --agree-tos -m ${EMAIL} --redirect || {
-            log "WARNING: Certbot automatic configuration failed. You may need to run it manually."
-            log "You can run: certbot --nginx -d ${SITE_DOMAIN} -d www.${SITE_DOMAIN}"
-        }
+    # Attempt DNS resolution
+    DOMAIN_IP=$(dig +short ${SITE_DOMAIN} 2>/dev/null || echo "")
+    log "Domain IP from DNS: $DOMAIN_IP"
+    
+    # Run certbot without DNS validation for --non-interactive or when testing
+    FORCE_SSL=${FORCE_SSL:-false}
+    
+    if [ "$FORCE_SSL" = "true" ] || [ "$PUBLIC_IP" = "$DOMAIN_IP" ] || [ -z "$DOMAIN_IP" ]; then
+        log "Running certbot to obtain SSL certificates"
+        
+        # Try certbot with DNS validation first
+        certbot --nginx -d ${SITE_DOMAIN} -d www.${SITE_DOMAIN} --non-interactive --agree-tos -m ${EMAIL} --redirect
+        CERTBOT_EXIT=$?
+        
+        if [ $CERTBOT_EXIT -ne 0 ]; then
+            log "WARNING: Standard certbot process failed, trying standalone method"
+            
+            # Stop nginx temporarily to free port 80
+            systemctl stop nginx
+            
+            # Try standalone method
+            certbot certonly --standalone -d ${SITE_DOMAIN} -d www.${SITE_DOMAIN} --non-interactive --agree-tos -m ${EMAIL}
+            CERTBOT_EXIT=$?
+            
+            # Restart nginx
+            systemctl start nginx
+            
+            if [ $CERTBOT_EXIT -eq 0 ]; then
+                log "Standalone certificate generation succeeded, configuring nginx"
+                
+                # Update nginx config to use the certificates
+                cat > "/etc/nginx/sites-available/${SITE_DOMAIN}" << EOF
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${SITE_DOMAIN} www.${SITE_DOMAIN};
+    return 301 https://\$host\$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name ${SITE_DOMAIN} www.${SITE_DOMAIN};
+    
+    root /var/www/${SITE_DOMAIN}/public;
+    
+    # SSL
+    ssl_certificate /etc/letsencrypt/live/${SITE_DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${SITE_DOMAIN}/privkey.pem;
+    
+    # SSL configuration
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers on;
+    ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-SHA384;
+    ssl_session_timeout 1d;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_tickets off;
+    ssl_stapling on;
+    ssl_stapling_verify on;
+    
+    # Index and character set
+    index index.php index.html index.htm;
+    charset utf-8;
+    
+    # Default location
+    location / {
+        try_files \$uri \$uri/ /index.php?\$query_string;
+    }
+    
+    # Logs
+    access_log /var/log/nginx/${SITE_DOMAIN}-access.log;
+    error_log /var/log/nginx/${SITE_DOMAIN}-error.log;
+    
+    # Handle php files
+    location ~ \.php$ {
+        fastcgi_pass unix:/var/run/php/php${PHP_VERSION}-fpm.sock;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME \$realpath_root\$fastcgi_script_name;
+        include fastcgi_params;
+    }
+    
+    # Favicon
+    location = /favicon.ico { access_log off; log_not_found off; }
+    location = /robots.txt  { access_log off; log_not_found off; }
+    
+    # Hidden files
+    location ~ /\.(?!well-known).* {
+        deny all;
+    }
+}
+EOF
+                
+                # Test and reload nginx
+                nginx -t && systemctl reload nginx
+            fi
+        fi
+        
+        if [ $CERTBOT_EXIT -ne 0 ]; then
+            log "WARNING: All automated SSL setup methods failed."
+            log "You can manually run: certbot --nginx -d ${SITE_DOMAIN} -d www.${SITE_DOMAIN}"
+            log "Continuing without SSL for now."
+        else
+            log "SSL certificates installed successfully!"
+        fi
     else
         log "WARNING: DNS is not configured correctly. Cannot set up SSL."
         log "Public IP: $PUBLIC_IP, Domain IP: $DOMAIN_IP"
-        log "Please configure DNS to point to your server's IP and then run:"
+        log "Please ensure your domain points to your server's IP and then run:"
         log "certbot --nginx -d ${SITE_DOMAIN} -d www.${SITE_DOMAIN}"
+        
+        # Even if DNS validation fails, try running certbot for localhost or IP-based testing
+        log "Attempting to obtain certificates even without DNS validation..."
+        FORCE_SSL=true certbot --nginx -d ${SITE_DOMAIN} --non-interactive --agree-tos -m ${EMAIL} --redirect || {
+            log "Certificate generation failed. Will continue without SSL."
+        }
     fi
 else
     log "SSL certificates already exist for $SITE_DOMAIN"
