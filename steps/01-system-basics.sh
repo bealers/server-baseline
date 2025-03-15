@@ -85,8 +85,15 @@ chmod 600 /home/$MAINTENANCE_USER/.ssh/authorized_keys
 # Set up www-data for deployments
 log "Setting up www-data for deployments"
 usermod -d /var/www -s /bin/bash www-data
-mkdir -p /var/www/.nvm /var/www/.npm /var/www/.config /var/www/.ssh
+mkdir -p /var/www/.nvm /var/www/.npm /var/www/.config
+
+# Properly set up www-data's .ssh directory with correct permissions
+log "Setting up SSH directory for www-data"
+mkdir -p /var/www/.ssh
 touch /var/www/.ssh/authorized_keys
+chown -R www-data:www-data /var/www/.ssh
+chmod 700 /var/www/.ssh
+chmod 600 /var/www/.ssh/authorized_keys
 
 # Set up dedicated deploy key for www-data
 if [ "$REPO_ACCESS_TYPE" = "ssh" ]; then
@@ -99,11 +106,15 @@ if [ "$REPO_ACCESS_TYPE" = "ssh" ]; then
         # Use provided deploy key
         log "Using provided deploy key"
         cp "$DEPLOY_KEY_PATH" /var/www/.ssh/id_ed25519
+        chown www-data:www-data /var/www/.ssh/id_ed25519
         chmod 600 /var/www/.ssh/id_ed25519
     else
-        # Generate a new deploy key
+        # Generate a new deploy key as root and fix permissions
         log "Generating a new deploy key for www-data"
-        su - www-data -c "ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N ''"
+        ssh-keygen -t ed25519 -f /var/www/.ssh/id_ed25519 -N "" -C "www-data@${SITE_DOMAIN}"
+        chown www-data:www-data /var/www/.ssh/id_ed25519*
+        chmod 600 /var/www/.ssh/id_ed25519
+        chmod 644 /var/www/.ssh/id_ed25519.pub
         
         # Display the public key for adding to GitHub
         log "==============================================="
@@ -121,12 +132,15 @@ Host github.com
     StrictHostKeyChecking no
     User git
 EOF
+    chown www-data:www-data /var/www/.ssh/config
+    chmod 600 /var/www/.ssh/config
 fi
 
 # Fix permissions for www-data
 chown -R www-data:www-data /var/www
 chmod 700 /var/www/.ssh
 find /var/www/.ssh -type f -exec chmod 600 {} \;
+chmod 644 /var/www/.ssh/id_ed25519.pub 2>/dev/null || true
 
 # Set up .bashrc for www-data
 cat > /var/www/.bashrc << 'EOF'

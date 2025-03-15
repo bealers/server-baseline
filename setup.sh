@@ -8,11 +8,11 @@ STEP_LOG_FILE="$(dirname "$0")/completed-steps.log"
 
 # Default values
 MAINTENANCE_USER="bealers"
-SITE_DOMAIN="example.com"
-EMAIL="admin@example.com"
+SITE_DOMAIN="bealers.com"
+EMAIL="darren.beale@siftware.com"
 PHP_VERSION="8.2"
-REPO_URL="https://github.com/user/repo.git"
-DB_TYPE="mysql"
+REPO_URL="https://github.com/bealers/bealers.com.git"
+DB_TYPE="sqlite"
 REPO_ACCESS_TYPE="https"
 USE_DEPLOY_KEY=false
 DEPLOY_KEY_PATH=""
