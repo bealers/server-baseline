@@ -4,92 +4,138 @@ Scripts for setting up a production server with LEMP stack (Linux, Nginx, MySQL/
 
 ## What's Included
 
-- An ssh-key based login for `$MAINTENANCE_USER` (who has sudo access)
-- `ufw` firewall running with everything closed except ports 22 (SSH), 80 (HTTP), and 443 (HTTPS)
-- `ntp` time server running and locale set to UK defaults
+- A modular, step-based server setup framework that can resume after failures
+- SSH key-based login for the maintenance user (with sudo access)
 - LEMP stack (Linux, Nginx, MySQL/PostgreSQL/SQLite, PHP)
 - Let's Encrypt SSL certificates
-- Laravel and Node.js setup
-- Security hardening with fail2ban to protect against brute force attacks
+- Laravel and Node.js setup with proper dependency management
+- Security hardening with firewall and fail2ban
+- Dedicated deploy key for secure repository access
 
-## Production Scripts
+## Architecture
 
-- `setup.sh` - Main setup script
-- `app/01-lemp.sh` - Sets up Nginx, PHP, database, and SSL
-- `app/03-laravel-node.sh` - Sets up Laravel and Node.js
-- `app/04-hardening.sh` - Configures fail2ban and other security measures
-- `app/update-domain.sh` - Helper script to change domains after initial setup
+The server build follows a step-based architecture:
+
+1. **System Basics**: Users, SSH, timezone, locale, and basic packages
+2. **Security Baseline**: Firewall, SSH hardening, and basic security
+3. **Web Stack**: Nginx, PHP, database, and SSL
+4. **Application Deploy**: Code checkout and dependencies
+5. **Advanced Hardening**: Additional security measures and hardening
+
+Each step is idempotent (can be run multiple times safely) and tracks completion status.
+
+## Scripts
+
+- `setup.sh` - Main control script that manages configuration and step execution
+- `steps/01-system-basics.sh` - Sets up users, SSH, and basic system configuration
+- `steps/02-security-baseline.sh` - Configures firewall and basic security
+- `steps/03-web-stack.sh` - Installs and configures Nginx, PHP, and database
+- `steps/04-application-deploy.sh` - Deploys application code and dependencies
+- `steps/05-advanced-hardening.sh` - Configures advanced security measures
 
 ## Usage
 
-1) Commission a new droplet, the latest [Ubuntu LTS](https://releases.ubuntu.com/) is a good choice. Make sure to select your ssh key when creating the droplet.
+1) Commission a new server, the latest [Ubuntu LTS](https://releases.ubuntu.com/) is recommended.
 
-2) Connect to the server.
+2) Connect to the server as root.
 
 ```bash
-ssh root@droplet.ip -i ~/.ssh/private-key
+ssh root@server.ip -i ~/.ssh/private-key
 ```
 
-3) Clone this repo and run the script.
+3) Clone this repo and run the setup script.
 ```bash
 git clone https://github.com/bealers/server-baseline.git
-cd server-baseline && chmod +x setup.sh app/*.sh
+cd server-baseline && chmod +x setup.sh steps/*.sh
 ./setup.sh
 ```
 
 4) Follow the prompts to configure your server with your domain, email, PHP version, and other settings.
 
-5) Open a new terminal and login as `$MAINTENANCE_USER`
+The setup script provides several options:
 
 ```bash
-# e.g.
-ssh bealers@droplet-ip -i ~/.ssh/private-key
+# Run all steps (skipping completed ones)
+./setup.sh
+
+# Run a specific step
+./setup.sh 03-web-stack
+
+# Reconfigure settings
+./setup.sh --reconfigure
+
+# Reset a specific step to run it again
+./setup.sh --reset-step 04-application-deploy
+
+# Reset all steps and start fresh
+./setup.sh --reset
+
+# Start from a specific step onwards
+./setup.sh --run-from 03-web-stack
+
+# List all available steps
+./setup.sh --list-steps
+
+# Show help information
+./setup.sh --help
 ```
 
-6) If step 5 works, close your root terminal and don't use root again.
+## Security Features
 
-## Changing Domains
+The security features include:
 
-If you need to change the domain after initial setup (e.g., moving from a staging to production domain):
+- Firewall configuration with UFW
+- SSH hardening to prevent brute force attacks
+- Fail2ban for automatic IP banning of malicious activity
+- Dedicated deploy key for secure repository access
+- Advanced intrusion detection rules for Nginx
+- Log monitoring and analysis
 
-1. Make sure the new domain's DNS is configured to point to your server
-2. Run the update-domain script:
+See the [fail2ban documentation](./docs/fail2ban.md) for more information on managing security.
+
+## Repository Access
+
+For private repositories, the setup uses a dedicated deploy key for the www-data user:
+
+1. A unique SSH key is generated for the www-data user during setup
+2. The public key is displayed during installation
+3. Add this key to your repository's deploy keys in GitHub/GitLab
+4. The application deployment will use this key to securely access your repository
+
+This approach follows the principle of least privilege, ensuring www-data only has access to the specific repository it needs.
+
+## Domain Change
+
+If you need to change the domain after initial setup:
+
+1. Reconfigure the setup with the new domain:
 ```bash
-sudo bash app/update-domain.sh old-domain.com new-domain.com
+./setup.sh --reconfigure
 ```
 
-The script will:
-- Verify DNS configuration
-- Get new SSL certificates
-- Update Nginx configuration
-- Move web root directory
-- Update database name and credentials (if using MySQL)
-- Restart services
+2. Run the web stack step to update Nginx configuration:
+```bash
+./setup.sh 03-web-stack
+```
+
+3. Run the application deploy step to update the application:
+```bash
+./setup.sh 04-application-deploy
+```
 
 ## Assumptions
 
-You are using a Digital Ocean droplet.
+You are using a Digital Ocean droplet or similar VPS provider.
 
-Which is to say that your server provisioning needs to leave a public key (that you have the matching private key for) in `/root/.ssh/authorized_keys`.
-
-This is how Digital Ocean currently does it if you select your ssh key when creating a droplet, but you should check for your provider.
+Your server provisioning needs to leave a public key (that you have the matching private key for) in `/root/.ssh/authorized_keys`.
 
 ## Security Notes
 
-For additional security, consider uncommenting and adjusting the SSH hardening section in the setup script:
+For additional security, the following measures are implemented:
 
-```bash
-# WARNING: This will very likely break default Digital Ocean access methods
-#
-# echo "PermitRootLogin no" >> /etc/ssh/sshd_config
-# echo "PasswordAuthentication no" >> /etc/ssh/sshd_config
-# systemctl restart sshd
-# passwd -l root  # Lock root account
-```
-
-## TODO
-
-Hardening:
-- passwordless entry only
-- remove root sshkey
+- Passwordless SSH authentication only
+- Firewall limiting access to ports 22, 80, and 443
+- Root login disabled via SSH
+- Regular security updates via unattended-upgrades
+- Comprehensive fail2ban rules to detect and block various attacks
 
